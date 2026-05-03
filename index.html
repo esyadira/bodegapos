@@ -2608,6 +2608,9 @@ async function sbCargarDesdeNube() {
         if (remoteSettings.apariencia) Object.assign(settings.apariencia, remoteSettings.apariencia);
         if (remoteSettings.sistema) Object.assign(settings.sistema, remoteSettings.sistema);
         inicializarAjustes();
+        aplicarCambiosVisuales();
+        aplicarMonedaEnDOM();
+        aplicarModoOscuro(settings.apariencia.darkMode);
       } catch(e) {}
     }
     // Guardar local sin disparar otro sync (evita bucle infinito)
@@ -7690,6 +7693,7 @@ function guardarNegocio() {
     settings.negocio.email  = v('cfg-email-negocio');
     settings.negocio.dir    = v('cfg-dir-negocio');
     localStorage.setItem('bodega_settings', JSON.stringify(settings));
+    if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
     aplicarCambiosVisuales();
     refrescarPaginaActiva();
     showToast('Negocio guardado ✓', 'success');
@@ -7719,6 +7723,7 @@ function guardarApariencia() {
     if (chk) settings.apariencia.darkMode    = chk.checked;
     if (col) settings.apariencia.colorAcento = col.value;
     localStorage.setItem('bodega_settings', JSON.stringify(settings));
+    if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
     aplicarCambiosVisuales();
     aplicarModoOscuro(settings.apariencia.darkMode);
     refrescarPaginaActiva();
@@ -7752,6 +7757,7 @@ function guardarSistema() {
     settings.sistema.mensajes   = chk('cfg-mostrar-mensajes');
     settings.sistema.confirmDel = chk('cfg-confirm-del');
     localStorage.setItem('bodega_settings', JSON.stringify(settings));
+    if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
     aplicarCambiosVisuales();
     aplicarMonedaEnDOM();
     refrescarPaginaActiva();
