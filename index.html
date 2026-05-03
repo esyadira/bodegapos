@@ -2599,7 +2599,17 @@ async function sbCargarDesdeNube() {
     if (d.ventasHistorial) ventasHistorial = d.ventasHistorial;
     if (d.pagosProveedoresHistorial) pagosProveedoresHistorial = d.pagosProveedoresHistorial;
     if (d.categorias) categorias = d.categorias;
-    if (data.settings) localStorage.setItem('bodega_settings', data.settings);
+    if (data.settings) {
+      localStorage.setItem('bodega_settings', data.settings);
+      try {
+        const remoteSettings = JSON.parse(data.settings);
+        if (remoteSettings.alertas) Object.assign(settings.alertas, remoteSettings.alertas);
+        if (remoteSettings.negocio) Object.assign(settings.negocio, remoteSettings.negocio);
+        if (remoteSettings.apariencia) Object.assign(settings.apariencia, remoteSettings.apariencia);
+        if (remoteSettings.sistema) Object.assign(settings.sistema, remoteSettings.sistema);
+        inicializarAjustes();
+      } catch(e) {}
+    }
     // Guardar local sin disparar otro sync (evita bucle infinito)
     _sbSkipSync = true;
     guardarTodoEnLocalStorage();
@@ -7723,6 +7733,7 @@ function guardarAlertas() {
     settings.alertas.deuda      = chk('cfg-alerta-deuda');
     settings.alertas.montoDeuda = num('cfg-monto-deuda', 100);
     localStorage.setItem('bodega_settings', JSON.stringify(settings));
+    if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
     actualizarStatusAlertas();
     actualizarNotificaciones();
     renderProdTable();
