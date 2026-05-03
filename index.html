@@ -2592,6 +2592,20 @@ async function sbCargarDesdeNube() {
     const { data, error } = await _supabase.from('bodega_sync').select('datos,settings').eq('tienda', cfg.tienda).single();
     if (error || !data) return;
     const d = JSON.parse(data.datos);
+
+    // ── Protección: solo sobrescribir si la nube tiene IGUAL O MÁS datos ──
+    // Comparamos la cantidad de productos (el dato más crítico).
+    // Si local tiene más productos que la nube, NO pisamos — la nube está desactualizada.
+    const prodLocales = productos ? productos.length : 0;
+    const prodNube   = (d.productos && Array.isArray(d.productos)) ? d.productos.length : 0;
+    if (prodLocales > prodNube) {
+      // La nube está desactualizada: guardar local en nube en vez de pisar
+      console.warn(`[BodegaPOS] Nube tiene ${prodNube} productos pero local tiene ${prodLocales}. Subiendo local a la nube...`);
+      showToast(`Nube desactualizada (${prodNube} vs ${prodLocales} productos). Subiendo datos locales...`, 'warning');
+      await sbGuardarEnNube();
+      return;
+    }
+
     if (d.productos) productos = d.productos;
     if (d.clientes) clientes = d.clientes;
     if (d.proveedores) proveedores = d.proveedores;
