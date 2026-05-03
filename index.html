@@ -1964,7 +1964,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           <div class="form-field" style="margin-left:16px;margin-top:8px;">
             <label>Monto máximo de deuda permitido (S/.)</label>
             <div style="display:flex;align-items:center;gap:10px;">
-              <input type="number" id="cfg-monto-deuda" min="1" style="max-width:120px;" oninput="actualizarPreviewAlertaDeuda(this.value)" onchange="settings.alertas.montoDeuda=parseFloat(this.value)||100;localStorage.setItem('bodega_settings',JSON.stringify(settings));actualizarDeudaAltaCount();actualizarNotificaciones();">
+              <input type="number" id="cfg-monto-deuda" min="1" style="max-width:120px;" oninput="actualizarPreviewAlertaDeuda(this.value)" onchange="const _v=parseFloat(this.value);if(!isNaN(_v)&&_v>0){settings.alertas.montoDeuda=_v;localStorage.setItem('bodega_settings',JSON.stringify(settings));actualizarDeudaAltaCount();renderClients();actualizarNotificaciones();actualizarDashboardReal();}">
               <span id="cfg-deuda-preview" style="font-size:12px;color:var(--text3);"></span>
             </div>
           </div>
@@ -3177,7 +3177,7 @@ function marcarTodasLeidas() {
 function actualizarNotificaciones() {
   if (!settings.alertas) return;
   const umbralStock = settings.alertas.stock ? (settings.alertas.minStock || 3) : -1;
-  const umbralDeuda = settings.alertas.deuda ? (settings.alertas.montoDeuda || 100) : -1;
+  const umbralDeuda = settings.alertas.deuda ? (parseFloat(settings.alertas.montoDeuda) || 100) : -1;
 
   let items = [];
 
@@ -3739,7 +3739,7 @@ function abrirModalStockBajo() {
 }
 
 function abrirModalDeudaAlta() {
-    const montoMaximo = settings.alertas.montoDeuda || 100;
+    const montoMaximo = parseFloat(settings.alertas.montoDeuda) || 100;
     const clientesDeuda = clientes.filter(c => c.deuda > montoMaximo);
     
     if (clientesDeuda.length === 0) {
@@ -3806,7 +3806,7 @@ function abrirModalDeudaAlta() {
 
 // Función para exportar deuda alta a Excel
 function exportDeudaAltaExcel() {
-    const montoMaximo = settings.alertas.montoDeuda || 100;
+    const montoMaximo = parseFloat(settings.alertas.montoDeuda) || 100;
     // Filtramos clientes cuya deuda es mayor que el límite configurado
     const clientesDeuda = clientes.filter(c => c.deuda > montoMaximo);
     const now = new Date().toLocaleDateString('es-PE');
@@ -4726,8 +4726,8 @@ function renderClients(filteredList){
   if(!data.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;"><i class="fa fa-users" style="display:block;font-size:28px;margin-bottom:8px;opacity:0.3;"></i>Sin registros</td></tr>`;if(typeof actualizarNotificaciones==='function')actualizarNotificaciones();return;}
   tb.innerHTML=data.map(c=>{
     const pct=Math.min((c.deuda/c.limite)*100,100);
-    const limiteDeuda = settings.alertas.montoDeuda || 100;
-    const deudaAlta = c.deuda >= limiteDeuda;
+    const limiteDeuda = parseFloat(settings.alertas.montoDeuda) || 100;
+    const deudaAlta = c.deuda > limiteDeuda;
     const envases = c.botellas || 0;
     return`<tr>
       <td><div style="display:flex;align-items:center;gap:8px;"><div class="rs-avatar" style="width:32px;height:32px;font-size:11px;">${c.nombre.split(' ').map(x=>x[0]).join('').slice(0,2)}</div><span style="font-weight:500;">${c.nombre}</span></div></td>
@@ -7717,7 +7717,7 @@ function guardarApariencia() {
 
 function guardarAlertas() {
     const chk = id => { const e = document.getElementById(id); return e ? e.checked : false; };
-    const num = (id, def) => { const e = document.getElementById(id); return e ? (parseInt(e.value) || def) : def; };
+    const num = (id, def) => { const e = document.getElementById(id); const v = parseFloat(e ? e.value : ''); return isNaN(v) || v <= 0 ? def : v; };
     settings.alertas.stock      = chk('cfg-alerta-stock');
     settings.alertas.minStock   = num('cfg-min-stock', 3);
     settings.alertas.deuda      = chk('cfg-alerta-deuda');
@@ -7726,8 +7726,10 @@ function guardarAlertas() {
     actualizarStatusAlertas();
     actualizarNotificaciones();
     renderProdTable();
-    updateStockBajoCount();        // <--- Agrega esta línea para actualizar stock bajo
-    actualizarDeudaAltaCount();    // <--- Ya la tienes
+    renderProdGrid();
+    updateStockBajoCount();
+    actualizarDeudaAltaCount();
+    actualizarDashboardReal();
     showToast('Alertas guardadas ✓', 'success');
 }
 
@@ -8058,6 +8060,7 @@ function toggleAlertaStock(checked) {
     actualizarStatusAlertas();
     updateStockBajoCount();
     actualizarNotificaciones();
+    actualizarDashboardReal();
 }
 
 function toggleAlertaDeuda(checked) {
@@ -8068,6 +8071,7 @@ function toggleAlertaDeuda(checked) {
     actualizarStatusAlertas();
     actualizarDeudaAltaCount();
     actualizarNotificaciones();
+    actualizarDashboardReal();
 }
 
 function actualizarPreviewAlertaStock(val) {
@@ -8102,7 +8106,7 @@ function actualizarStatusAlertas() {
     const el = document.getElementById('cfg-alertas-status');
     if (!el) return;
     const stockActivos = productos.filter(p => p.stock <= (settings.alertas.minStock || 3)).length;
-    const deudaActivos = clientes.filter(c => c.deuda > (settings.alertas.montoDeuda || 100)).length;
+    const deudaActivos = clientes.filter(c => c.deuda > (parseFloat(settings.alertas.montoDeuda) || 100)).length;
     el.innerHTML = `
         <div>🔔 Alerta de stock: <strong>${settings.alertas.stock ? 'Activada' : 'Desactivada'}</strong> — umbral: <strong>≤ ${settings.alertas.minStock} unidades</strong> — ${stockActivos} producto(s) afectados actualmente</div>
         <div>💰 Alerta de deudas: <strong>${settings.alertas.deuda ? 'Activada' : 'Desactivada'}</strong> — límite: <strong>${moneda()} ${settings.alertas.montoDeuda}</strong> — ${deudaActivos} cliente(s) superan el límite</div>
@@ -8711,7 +8715,7 @@ function filtrarTablaVend(q) {
 }
 
 function actualizarDeudaAltaCount() {
-  const montoMaximo = settings.alertas.montoDeuda || 100;
+  const montoMaximo = parseFloat(settings.alertas.montoDeuda) || 100;
   const deudaAlta = clientes.filter(c => c.deuda > montoMaximo);
   const el = document.getElementById('deudaAltaCount');
   if (el) el.textContent = deudaAlta.length;
