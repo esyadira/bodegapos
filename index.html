@@ -413,7 +413,7 @@ tr:last-child td{border:none;}
 tr:hover td{background:rgba(255,255,255,0.02);}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-green{background:rgba(16,185,129,0.15);color:var(--accent3);}
-.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);}
+.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);min-width:80px;justify-content:center;}
 .badge-red{background:rgba(239,68,68,0.15);color:var(--danger);}
 .badge-blue{background:rgba(var(--accent-rgb,245,158,11),0.15);color:var(--accent);}
 .action-btns{display:flex;gap:6px;}
@@ -5369,6 +5369,7 @@ function confirmarPagoDeuda() {
   // Registrar el pago en el historial del cliente con método y VENDEDOR
   if (!c.pagos) c.pagos = [];
   c.pagos.push({
+    id: Date.now() + Math.floor(Math.random()*1000),
     fecha: new Date().toLocaleDateString('es-PE'),
     fechaISO: new Date().toLocaleDateString('en-CA'),
     hora: new Date().toLocaleTimeString('es-PE', {hour:'2-digit',minute:'2-digit'}),
@@ -6156,8 +6157,38 @@ function eliminarVentaIndividual(ventaId) {
   if (!confirm('¿Eliminar este registro del reporte? Esta acción no se puede deshacer.')) return;
   ventasHistorial = ventasHistorial.filter(v => v.id !== ventaId);
   guardarTodoEnLocalStorage();
-  renderReportes();
+  actualizarDashboardReal();
+  renderReportes(_getPanelActivo());
   showToast('Registro eliminado', 'success');
+}
+
+function _getPanelActivo() {
+  const panelVisible = document.querySelector('.rep-panel[style*="flex"], .rep-panel[style*="block"]');
+  return panelVisible ? panelVisible.id : null;
+}
+
+function eliminarAbonoIndividual(clienteNombre, fechaISO, monto, hora) {
+  if (!confirm('¿Eliminar este abono del reporte? Esta acción no se puede deshacer.')) return;
+  const c = clientes.find(x => x.nombre === clienteNombre);
+  if (!c || !c.pagos) { showToast('No se encontró el abono', 'error'); return; }
+  const idx = c.pagos.findIndex(p => p.fechaISO === fechaISO && Math.abs(p.monto - monto) < 0.01 && (p.hora || '—') === hora);
+  if (idx === -1) { showToast('No se encontró el abono', 'error'); return; }
+  c.pagos.splice(idx, 1);
+  guardarTodoEnLocalStorage();
+  actualizarDashboardReal();
+  renderReportes(_getPanelActivo());
+  showToast('Abono eliminado', 'success');
+}
+
+function eliminarPagoProvIndividual(fechaISO, proveedor, monto, hora) {
+  if (!confirm('¿Eliminar este pago a proveedor del reporte? Esta acción no se puede deshacer.')) return;
+  const idx = pagosProveedoresHistorial.findIndex(pp => pp.fechaISO === fechaISO && pp.proveedor === proveedor && Math.abs(parseFloat(pp.monto) - monto) < 0.01 && (pp.hora || '—') === hora);
+  if (idx === -1) { showToast('No se encontró el pago', 'error'); return; }
+  pagosProveedoresHistorial.splice(idx, 1);
+  guardarTodoEnLocalStorage();
+  actualizarDashboardReal();
+  renderReportes(_getPanelActivo());
+  showToast('Pago a proveedor eliminado', 'success');
 }
 
 
@@ -6415,6 +6446,14 @@ function renderRepDia(fecha) {
       montoHTML = `<span style="font-weight:700; color:${color};">${moneda()} ${montoAbs.toFixed(2)}</span>`;
     }
     
+    let deleteBtn = '—';
+    if (f.ventaId) {
+      deleteBtn = `<button onclick="eliminarVentaIndividual(${f.ventaId})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar registro"><i class="fa fa-trash"></i></button>`;
+    } else if (f.esAbono) {
+      deleteBtn = `<button onclick="eliminarAbonoIndividual(${JSON.stringify(f.cliente)}, ${JSON.stringify(fecha)}, ${f.subtotal}, ${JSON.stringify(f.hora)})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar abono"><i class="fa fa-trash"></i></button>`;
+    } else if (f.esPagoProv) {
+      deleteBtn = `<button onclick="eliminarPagoProvIndividual(${JSON.stringify(fecha)}, ${JSON.stringify(f.cliente)}, ${Math.abs(f.subtotal)}, ${JSON.stringify(f.hora)})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar pago proveedor"><i class="fa fa-trash"></i></button>`;
+    }
     htmlParts.push(`<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${f.hora}</td>
       <td><span class="badge badge-yellow" style="font-size:10px;background:rgba(245,158,11,0.15);">${f.vendedor}</span></td>
@@ -6423,7 +6462,7 @@ function renderRepDia(fecha) {
       <td style="text-align:center;">${f.cantidad > 1 && !f.producto.includes('ABONO') && !f.producto.includes('PAGO') ? `<span class="badge badge-blue">${f.cantidad} uds.</span>` : (f.producto.includes('ABONO') || f.producto.includes('PAGO') ? '—' : '<span class="badge badge-blue">1 ud.</span>')}</td>
       <td>${f.metodo}</td>
       <td style="text-align:right;">${montoHTML}</td>
-      <td style="text-align:center;">${f.ventaId ? `<button onclick="eliminarVentaIndividual(${f.ventaId})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar registro"><i class="fa fa-trash"></i></button>` : '—'}</td>
+      <td style="text-align:center;">${deleteBtn}</td>
     </tr>`);
     
     lastTipo = tipoActual;
@@ -6617,7 +6656,7 @@ function renderRepYape(fecha) {
   });
   const pagosProveedoresYape = pagosProveedoresHistorial.filter(pp => pp.metodo === 'yape' && esMismaFechaP(pp) && (vendFiltro === 'todos' || (pp.vendedor || 'Admin') === vendFiltro));
 
-  const totalVentasYape = ventasYape.reduce((a, v) => a + (v.total || 0), 0);
+  const totalVentasYape = ventasYape.reduce((a, v) => a + Math.min(v.pagado ?? v.total ?? 0, v.total ?? 0), 0);
   const totalAbonosYape = abonosYape.reduce((a, p) => a + p.monto, 0);
   const totalPagosProvYape = pagosProveedoresYape.reduce((a, pp) => a + parseFloat(pp.monto || 0), 0);
   const totalNetoYape = totalVentasYape + totalAbonosYape - totalPagosProvYape;
@@ -6733,7 +6772,7 @@ function renderRepYape(fecha) {
         <td style="font-size:12px;color:#7c3aed;"><i class="fa fa-hand-holding-dollar"></i> Abono de deuda</td>
         <td><span class="badge" style="background:rgba(124,58,237,0.15);color:#7c3aed;">Yape</span></td>
         <td style="text-align:right;"><span style="font-weight:700;color:#7c3aed;">+ ${moneda()} ${p.monto.toFixed(2)}</span></td>
-        <td>—</td>
+        <td style="text-align:center;"><button onclick="eliminarAbonoIndividual(${JSON.stringify(p.cliente)}, ${JSON.stringify(p.fechaISO)}, ${p.monto}, ${JSON.stringify(p.hora)})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar abono"><i class="fa fa-trash"></i></button></td>
       </tr>`
     }));
   }
@@ -6751,7 +6790,7 @@ function renderRepYape(fecha) {
           <td style="font-size:12px;color:var(--warning);"><i class="fa fa-truck"></i> ${itemsTxt}</td>
           <td><span class="badge" style="background:rgba(124,58,237,0.15);color:#7c3aed;">Yape</span></td>
           <td style="text-align:right;"><span style="font-weight:700;color:var(--warning);">- ${moneda()} ${parseFloat(pp.monto).toFixed(2)}</span></td>
-          <td>—</td>
+          <td style="text-align:center;"><button onclick="eliminarPagoProvIndividual(${JSON.stringify(pp.fechaISO)}, ${JSON.stringify(pp.proveedor)}, ${parseFloat(pp.monto)}, ${JSON.stringify(pp.hora||'—')})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar pago proveedor"><i class="fa fa-trash"></i></button></td>
         </tr>`
       });
     });
@@ -6921,7 +6960,7 @@ function renderInvTabla(data) {
         <td style="font-size:12px;color:var(--accent3);"><i class="fa fa-hand-holding-dollar"></i> Abono de deuda</td>
         <td><span class="badge badge-green">Efectivo</span></td>
         <td style="text-align:right;"><span style="font-weight:700;color:var(--accent3);">+ ${moneda()} ${p.monto.toFixed(2)}</span></td>
-        <td>—</td>
+        <td style="text-align:center;"><button onclick="eliminarAbonoIndividual(${JSON.stringify(p.cliente)}, ${JSON.stringify(p.fechaISO)}, ${p.monto}, ${JSON.stringify(p.hora)})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar abono"><i class="fa fa-trash"></i></button></td>
       </tr>`
     }));
   }
@@ -6939,7 +6978,7 @@ function renderInvTabla(data) {
           <td style="font-size:12px;color:var(--warning);"><i class="fa fa-truck"></i> ${itemsTxt}</td>
           <td><span class="badge" style="background:rgba(249,115,22,0.15);color:var(--warning);">Pago</span></td>
           <td style="text-align:right;"><span style="font-weight:700;color:var(--warning);">- ${moneda()} ${parseFloat(pp.monto).toFixed(2)}</span></td>
-          <td>—</td>
+          <td style="text-align:center;"><button onclick="eliminarPagoProvIndividual(${JSON.stringify(pp.fechaISO)}, ${JSON.stringify(pp.proveedor)}, ${parseFloat(pp.monto)}, ${JSON.stringify(pp.hora||'—')})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar pago proveedor"><i class="fa fa-trash"></i></button></td>
         </tr>`
       });
     });
@@ -7257,14 +7296,27 @@ function actualizarDashboardReal() {
 
   // 2. Ventas y Transacciones de hoy desde ventasHistorial
   const hoy = new Date().toLocaleDateString('es-PE');
+  const hoyISO = new Date().toLocaleDateString('en-CA');
   let totalHoy = 0;
   let transaccionesHoy = 0;
 
   ventasHistorial.forEach(v => {
-    if (v.fecha === hoy) {
-      totalHoy += (v.total || 0);
+    if (v.fecha === hoy && !v.esPagoPedidoProv) {
+      totalHoy += Math.min(v.pagado ?? v.total ?? 0, v.total ?? 0);
       transaccionesHoy++;
     }
+  });
+
+  // Sumar abonos del día
+  clientes.forEach(c => {
+    (c.pagos || []).filter(p => p.fechaISO === hoyISO).forEach(p => {
+      totalHoy += p.monto || 0;
+    });
+  });
+
+  // Restar pagos a proveedores del día
+  pagosProveedoresHistorial.filter(pp => pp.fechaISO === hoyISO).forEach(pp => {
+    totalHoy -= parseFloat(pp.monto || 0);
   });
 
   if(document.getElementById('dashVentasHoy')) 
@@ -7281,14 +7333,19 @@ function actualizarDashboardReal() {
 }
 
 function renderWeekChartReal(){
-  // Obtener ventas de los últimos 7 días
   const dias = [];
+  const diasISO = [];
   for(let i=6;i>=0;i--){
     const d=new Date(); d.setDate(d.getDate()-i);
     dias.push(d.toLocaleDateString('es-PE'));
+    diasISO.push(d.toLocaleDateString('en-CA'));
   }
-  const vals = dias.map(fecha => {
-    return ventasHistorial.filter(v=>v.fecha===fecha).reduce((a,v)=>a+(v.total||0),0);
+  const vals = diasISO.map((fechaISO, i) => {
+    const fecha = dias[i];
+    let total = ventasHistorial.filter(v=>v.fecha===fecha&&!v.esPagoPedidoProv).reduce((a,v)=>a+Math.min(v.pagado??v.total??0,v.total??0),0);
+    clientes.forEach(c=>(c.pagos||[]).filter(p=>p.fechaISO===fechaISO).forEach(p=>total+=p.monto||0));
+    pagosProveedoresHistorial.filter(pp=>pp.fechaISO===fechaISO).forEach(pp=>total-=parseFloat(pp.monto||0));
+    return Math.max(0, total);
   });
   const max = Math.max(...vals,1);
   const c = document.getElementById('weekChart');
@@ -7471,7 +7528,7 @@ function renderSalesChart() {
     monday.setDate(today.getDate() - diff);
 
     ventasHistorial.forEach(v => {
-      // Parsear fechaISO como fecha local (evitar desfase UTC)
+      if (v.esPagoPedidoProv) return;
       let vDayOnly;
       if (v.fechaISO) {
         const [y,m,d] = v.fechaISO.split('-').map(Number);
@@ -7483,7 +7540,28 @@ function renderSalesChart() {
       
       if (vDayOnly >= monday && vDayOnly <= today) {
         const dayIdx = vDayOnly.getDay() === 0 ? 6 : vDayOnly.getDay() - 1;
-        data[dayIdx] += (v.total || 0);
+        data[dayIdx] += Math.min(v.pagado ?? v.total ?? 0, v.total ?? 0);
+      }
+    });
+    // Sumar abonos y restar pagos proveedores por día
+    clientes.forEach(c => {
+      (c.pagos||[]).forEach(p => {
+        if (!p.fechaISO) return;
+        const [y,m,d] = p.fechaISO.split('-').map(Number);
+        const pDay = new Date(y, m-1, d);
+        if (pDay >= monday && pDay <= today) {
+          const dayIdx = pDay.getDay() === 0 ? 6 : pDay.getDay() - 1;
+          data[dayIdx] += p.monto || 0;
+        }
+      });
+    });
+    pagosProveedoresHistorial.forEach(pp => {
+      if (!pp.fechaISO) return;
+      const [y,m,d] = pp.fechaISO.split('-').map(Number);
+      const pDay = new Date(y, m-1, d);
+      if (pDay >= monday && pDay <= today) {
+        const dayIdx = pDay.getDay() === 0 ? 6 : pDay.getDay() - 1;
+        data[dayIdx] = Math.max(0, data[dayIdx] - (parseFloat(pp.monto)||0));
       }
     });
   } 
@@ -7491,12 +7569,25 @@ function renderSalesChart() {
     labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     data = Array(12).fill(0);
     ventasHistorial.forEach(v => {
+      if (v.esPagoPedidoProv) return;
       let vDate;
       if (v.fechaISO) { const [y,m] = v.fechaISO.split('-').map(Number); vDate = new Date(y, m-1, 1); }
       else vDate = new Date(v.fecha);
       if (vDate.getFullYear() === now.getFullYear()) {
-        data[vDate.getMonth()] += (v.total || 0);
+        data[vDate.getMonth()] += Math.min(v.pagado ?? v.total ?? 0, v.total ?? 0);
       }
+    });
+    clientes.forEach(c => {
+      (c.pagos||[]).forEach(p => {
+        if (!p.fechaISO) return;
+        const [y,m] = p.fechaISO.split('-').map(Number);
+        if (y === now.getFullYear()) data[m-1] += p.monto || 0;
+      });
+    });
+    pagosProveedoresHistorial.forEach(pp => {
+      if (!pp.fechaISO) return;
+      const [y,m] = pp.fechaISO.split('-').map(Number);
+      if (y === now.getFullYear()) data[m-1] = Math.max(0, data[m-1] - (parseFloat(pp.monto)||0));
     });
   }
   else if (period === 'years') {
@@ -7506,15 +7597,28 @@ function renderSalesChart() {
     data = Array(3).fill(0);
     
     ventasHistorial.forEach(v => {
+      if (v.esPagoPedidoProv) return;
       let year;
       if (v.fechaISO) { year = parseInt(v.fechaISO.split('-')[0]); }
       else { year = new Date(v.fecha).getFullYear(); }
-      
-      // Buscamos si ese año está en nuestras etiquetas
       const idx = labels.indexOf(year);
       if (idx !== -1) {
-        data[idx] += (v.total || 0);
+        data[idx] += Math.min(v.pagado ?? v.total ?? 0, v.total ?? 0);
       }
+    });
+    clientes.forEach(c => {
+      (c.pagos||[]).forEach(p => {
+        if (!p.fechaISO) return;
+        const year = parseInt(p.fechaISO.split('-')[0]);
+        const idx = labels.indexOf(year);
+        if (idx !== -1) data[idx] += p.monto || 0;
+      });
+    });
+    pagosProveedoresHistorial.forEach(pp => {
+      if (!pp.fechaISO) return;
+      const year = parseInt(pp.fechaISO.split('-')[0]);
+      const idx = labels.indexOf(year);
+      if (idx !== -1) data[idx] = Math.max(0, data[idx] - (parseFloat(pp.monto)||0));
     });
   }
 
@@ -7531,7 +7635,7 @@ container.innerHTML = data.map(v => {
   return `
     <div style="flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:5px;">
       <span style="font-size:9px; color:var(--accent3); font-weight:700;">
-        ${v > 0 ? moneda() + Math.round(v) : ''}
+        ${v > 0 ? moneda() + v.toFixed(2) : ''}
       </span>
       <div class="bar" style="
         height:${height}%; 
@@ -8659,6 +8763,7 @@ function renderRepVendedores() {
           <td style="text-align:center;">—</td>
           <td>${metodoBadge}</td>
           <td style="text-align:right;">${montoHTML}</td>
+          <td style="text-align:center;"><button onclick="eliminarAbonoIndividual(${JSON.stringify(ab.cliente)}, ${JSON.stringify(ab.fechaISO)}, ${ab.monto}, ${JSON.stringify(ab.hora||'—')})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar abono"><i class="fa fa-trash"></i></button></td>
         </tr>`;
     });
   }
@@ -8679,7 +8784,13 @@ function renderRepVendedores() {
       const metodoBadge = pp.metodo === 'yape'
         ? `<span class="badge" style="background:rgba(124,58,237,0.15);color:#7c3aed;"><i class="fa fa-mobile-screen"></i> Yape</span>`
         : `<span class="badge badge-green"><i class="fa fa-money-bill"></i> Efectivo</span>`;
-      return (pp.items||[{nombre:'Pedido proveedor', qty:1}]).map(it => `
+      const items = pp.items||[{nombre:'Pedido proveedor', qty:1}];
+      const montoTotal = parseFloat(pp.monto)||0;
+      return items.map((it, itIdx) => {
+        const montoDisplay = itIdx === 0
+          ? `- ${moneda()} ${montoTotal.toFixed(2)}`
+          : `<span style="color:var(--text3);font-size:11px;">↑ incluido</span>`;
+        return `
         <tr style="background:rgba(249,115,22,0.03);">
           <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${pp.hora||'—'}</td>
           <td><span class="badge" style="background:rgba(249,115,22,0.15);color:var(--warning);font-size:10px;">${pp.vendedor || 'Admin'}</span></td>
@@ -8687,8 +8798,10 @@ function renderRepVendedores() {
           <td style="font-size:12px;color:var(--warning);"><i class="fa fa-truck"></i> ${it.nombre}</td>
           <td style="text-align:center;"><span class="badge badge-blue">x${it.qty||1}</span></td>
           <td>${metodoBadge}</td>
-          <td style="text-align:right;font-weight:700;color:var(--warning);">- ${moneda()} ${parseFloat(pp.monto).toFixed(2)}</td>
-        </tr>`).join('');
+          <td style="text-align:right;font-weight:700;color:var(--warning);">${montoDisplay}</td>
+          <td style="text-align:center;">${itIdx === 0 ? `<button onclick="eliminarPagoProvIndividual(${JSON.stringify(pp.fechaISO)}, ${JSON.stringify(pp.proveedor)}, ${montoTotal}, ${JSON.stringify(pp.hora||'—')})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:11px;" title="Eliminar pago proveedor"><i class="fa fa-trash"></i></button>` : '—'}</td>
+        </tr>`;
+      }).join('');
     }).join('');
     tbody.innerHTML += sepProv + filasProv;
   }
@@ -8743,8 +8856,9 @@ function renderRepVendedores() {
         <div style="font-size:10px;color:var(--text3);margin-top:3px;">${sub}</div>
       </div>`;
     };
+    const ingresoCaja = totalVendidoReal + totalAbonosCobrados - totalPagosProveedores;
     kpiCards.innerHTML =
-      mkCard('cobrado','rgba(16,185,129,0.06)','#10b981','<i class="fa fa-cash-register"></i>','Ingresos en Caja',`${moneda()} ${totalVendidoReal.toFixed(2)}`,'Total cobrado') +
+      mkCard('cobrado','rgba(16,185,129,0.06)','#10b981','<i class="fa fa-cash-register"></i>','Ingresos en Caja',`${moneda()} ${ingresoCaja.toFixed(2)}`,'Ventas + Abonos - Proveedores') +
       mkCard('fiado','rgba(239,68,68,0.06)','var(--danger)','<i class="fa fa-clock-rotate-left"></i>','Pendiente Cobro',`${moneda()} ${totalFiado.toFixed(2)}`,'Fiado / parcial') +
       mkCard('yape','rgba(124,58,237,0.06)','#7c3aed','<i class="fa fa-mobile-screen"></i>','Yape',`${moneda()} ${totalYape.toFixed(2)}`,'Pagos vía Yape') +
       mkCard('efectivo','rgba(245,158,11,0.06)','var(--accent)','<i class="fa fa-money-bill-wave"></i>','Efectivo',`${moneda()} ${totalEfectivo.toFixed(2)}`,'Pagos efectivo') +
