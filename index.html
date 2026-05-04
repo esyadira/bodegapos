@@ -3644,8 +3644,9 @@ function filterProducts(q){
   });
   renderProdTable(filtered);
   renderProdGrid(filtered);
-  // Detección de escaneo: código ≥6 caracteres → si no existe, abrir modal nuevo producto
-  if(q.length>=6){
+  // Detección de escaneo: código ≥6 caracteres y solo dígitos → si no existe, abrir modal nuevo producto
+  const esCodigoNumerico = /^\d+$/.test(q);
+  if(q.length>=6 && esCodigoNumerico){
     clearTimeout(_prodScanTimer);
     _prodScanTimer=setTimeout(()=>{
       const inp=document.getElementById('prodSearchInput');
