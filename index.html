@@ -884,7 +884,12 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     left: 0;
     box-shadow: 4px 0 32px rgba(0,0,0,0.5);
   }
-  /* Overlay backdrop */
+  /* En tablet/móvil, collapsed no aplica - solo open/close con drawer */
+  .sidebar.collapsed {
+    width: 240px !important;
+    left: -260px;
+    padding: 12px 0;
+  }
   .sidebar-backdrop {
     display: none;
     position: fixed;
@@ -900,13 +905,19 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   .ventas-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr auto;
     height: calc(100vh - var(--header-h) - 32px);
     gap: 12px;
   }
   .carrito-panel {
-    height: 300px;
-    min-height: 260px;
+    height: auto;
+    min-height: 380px;
+    max-height: 48vh;
+    overflow: hidden;
+  }
+  .carrito-panel .carrito-footer {
+    overflow-y: auto;
+    max-height: 280px;
   }
   .productos-panel { height: auto; overflow-y: auto; }
 
@@ -1476,7 +1487,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           </div>
         </div>
 
-        <div class="ventas-layout" style="display: grid; grid-template-columns: 1fr 450px; gap: 16px; overflow: hidden;">
+        <div class="ventas-layout" style="display: grid; grid-template-columns: 1fr 450px; gap: 16px; height: calc(100vh - var(--header-h) - 100px); overflow: hidden;">
           
           <div class="productos-panel" style="overflow-y: auto; height: 100%; padding-right: 8px;">
             <div class="table-toolbar" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px; position: sticky; top: 0; z-index: 10;">
@@ -4328,8 +4339,8 @@ function filterPOSProducts(inp){
         enfocarBuscarPOS(); // 👈 Agrega esta línea
       }
     },80);
-  } else if(inp.value.length>=6 && !exact){
-    // Si el código escaneado no existe en productos, abrir modal de nuevo producto
+  } else if(inp.value.length>=6 && !exact && /^\d+$/.test(inp.value)){
+    // Solo si es un código de barras puro (solo dígitos) que no existe, abrir modal
     clearTimeout(barcodeTimer);
     barcodeTimer=setTimeout(()=>{
       if(document.querySelector('#page-ventas .table-search input').value===inp.value){
