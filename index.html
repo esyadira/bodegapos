@@ -297,6 +297,13 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:var(--bg);color:v
   background:var(--surface);border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;
   padding:12px 0;
+  transition: width 0.25s cubic-bezier(0.16,1,0.3,1);
+  overflow-x: hidden;
+}
+.sidebar.collapsed {
+  width: 0 !important;
+  border-right: none;
+  padding: 0;
 }
 .nav-section{padding:4px 12px;margin-top:8px;}
 .nav-section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;margin-bottom:4px;}
@@ -801,6 +808,18 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   gap: 16px;
 }
 
+/* ====== HAMBURGER BUTTON (always visible) ====== */
+.sidebar-toggle {
+  display: flex;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; color: var(--text2);
+  font-size: 15px; flex-shrink: 0; margin-left: 8px;
+  transition: all 0.2s;
+}
+.sidebar-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ====== RESPONSIVE SYSTEM ====== */
 
 /* --- Laptop/Medium screens (1024px - 1366px) --- */
@@ -850,18 +869,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
     --header-h: 56px;
   }
   html, body { overflow: hidden; }
-
-  /* Hamburger button */
-  .sidebar-toggle {
-    display: flex !important;
-    width: 36px; height: 36px;
-    align-items: center; justify-content: center;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; cursor: pointer; color: var(--text2);
-    font-size: 15px; flex-shrink: 0; margin-left: 8px;
-    transition: all 0.2s;
-  }
-  .sidebar-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
   /* Sidebar becomes a slide-over drawer */
   .sidebar {
@@ -1183,7 +1190,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <!-- HEADER -->
  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
  <header class="header">
-  <div class="sidebar-toggle" style="display:none;" onclick="toggleSidebar()" title="Menú">
+  <div class="sidebar-toggle" onclick="toggleSidebar()" title="Menú">
     <i class="fa fa-bars" id="sidebarToggleIcon"></i>
   </div>
   <div class="header-brand">
@@ -3155,23 +3162,8 @@ function showPage(pageId) {
     if (hadFilter) { renderProdTable(); renderProdGrid(); }
   }
 
-  // Enfocar buscador al entrar a cualquier página
-  const searchFocusMap = {
-    'ventas':       '#page-ventas .table-search input',
-    'productos':    '#prodSearchInput',
-    'clientes':     '#clientSearchBox',
-    'categorias':   '#catSearchInput',
-    'proveedores':  '#provSearchInput',
-    'vendedores':   '#vendSearchInput',
-    'reportes':     '#repVendSearch',
-  };
-  window._activeSearchSelector = searchFocusMap[pageId] || null;
-  if (searchFocusMap[pageId]) {
-    setTimeout(() => {
-      const el = document.querySelector(searchFocusMap[pageId]);
-      if (el) { el.focus(); el.select(); }
-    }, 120);
-  }
+  // No enfocar automáticamente el buscador al cambiar de página
+  window._activeSearchSelector = null;
 
   const color = settings.apariencia.colorAcento || '#f59e0b';
   const hex = color.replace('#','');
@@ -3668,7 +3660,7 @@ function filterProducts(q){
 }
 
 function _enfocarBusquedaProductos(){
-  setTimeout(()=>{const el=document.getElementById('prodSearchInput');if(el)el.focus();},80);
+  // Desactivado: no enfocar automáticamente
 }
 function clearVendFilter(){document.getElementById('vendSearchInput').value='';renderVendedores();}
 function clearProvFilter(){document.getElementById('provSearchInput').value='';renderProveedores();}
@@ -6129,11 +6121,6 @@ function showReporte(btn, panelId) {
   btn.classList.add('active');
   document.getElementById(panelId).style.display = 'flex';
   renderReportes(panelId);
-  // Auto-focus search input in the active panel
-  setTimeout(() => {
-    const searchEl = document.querySelector('#' + panelId + ' input[type="text"]');
-    if (searchEl) searchEl.focus();
-  }, 150);
 }
 
 function getRepFecha() {
@@ -9055,49 +9042,10 @@ function crearClienteAlEnter(event) {
 
 // Función para enfocar el buscador de productos en POS
 function enfocarBuscarPOS() {
-  setTimeout(() => {
-    const searchInput = document.querySelector('#page-ventas .table-search input');
-    if (searchInput) {
-      searchInput.focus();
-    }
-  }, 100);
+  // Desactivado: no enfocar automáticamente para no abrir el teclado
 }
 
-// ========================================
-// AUTO-REFOCUS: devuelve el foco al buscador de la página activa
-// cuando el usuario termina de escribir en otro input
-// ========================================
-(function() {
-  let _refocusTimer = null;
-
-  document.addEventListener('focusout', function(e) {
-    const sel = window._activeSearchSelector;
-    if (!sel) return;
-
-    // Si hay un modal abierto, no hacer nada
-    const modalOpen = document.querySelector('.modal-overlay.active, .modal-overlay[style*="flex"]');
-    if (modalOpen) return;
-
-    const target = e.target;
-    const searchEl = document.querySelector(sel);
-    if (!searchEl || target === searchEl) return;
-
-    // Solo actuar si el target que pierde foco es un input/textarea/select
-    const isInputEl = target.matches('input, textarea, select');
-    if (!isInputEl) return;
-
-    clearTimeout(_refocusTimer);
-    _refocusTimer = setTimeout(() => {
-      // Verificar que no haya ningún modal abierto y que el foco no esté en otro input relevante
-      const modalOpenNow = document.querySelector('.modal-overlay.active, .modal-overlay[style*="flex"]');
-      if (modalOpenNow) return;
-      const focused = document.activeElement;
-      if (focused && focused !== document.body && focused !== searchEl) return;
-      const searchElNow = document.querySelector(sel);
-      if (searchElNow) searchElNow.focus();
-    }, 300);
-  });
-})();
+// Auto-refocus desactivado para no abrir el teclado automáticamente
 
 
 function enfocarMontoCobro() {
@@ -9196,17 +9144,28 @@ function renderRepSalidas() {
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
-  if (sidebar.classList.contains('open')) {
-    sidebar.classList.remove('open');
-    backdrop.classList.remove('show');
+  const isMobile = window.innerWidth <= 1024;
+
+  if (isMobile) {
+    // Mobile: slide-over drawer con backdrop
+    if (sidebar.classList.contains('open')) {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('show');
+    } else {
+      sidebar.classList.add('open');
+      backdrop.classList.add('show');
+    }
   } else {
-    sidebar.classList.add('open');
-    backdrop.classList.add('show');
+    // Desktop: colapsar/expandir inline
+    sidebar.classList.toggle('collapsed');
   }
 }
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarBackdrop').classList.remove('show');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  sidebar.classList.remove('open');
+  sidebar.classList.remove('collapsed');
+  backdrop.classList.remove('show');
 }
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-item, .logout-btn').forEach(el => {
