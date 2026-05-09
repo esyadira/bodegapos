@@ -1656,13 +1656,13 @@ tr:hover td{background:rgba(255,255,255,0.02);}
               </div>
 
               <div class="pay-methods" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
-              <div class="pay-method" id="payEfectivo" onclick="abrirCobroDirecto('efectivo')" style="padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;">
-                <i class="fa fa-money-bill" style="display: block; margin-bottom: 4px; font-size: 18px;"></i>
-                <span style="font-size: 13px; font-weight: 600;">Efectivo</span>
+              <div class="pay-method" id="payEfectivo" onclick="abrirCobroDirecto('efectivo')" style="padding: 12px; background: rgba(16,185,129,0.12); border: 1.5px solid rgba(16,185,129,0.35); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;">
+                <i class="fa fa-money-bill" style="display: block; margin-bottom: 4px; font-size: 18px; color: #10b981;"></i>
+                <span style="font-size: 13px; font-weight: 700; color: #059669;">Efectivo</span>
               </div>
-              <div class="pay-method" id="payYape" onclick="abrirCobroDirecto('yape')" style="padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;">
-                <i class="fa fa-mobile-screen" style="display: block; margin-bottom: 4px; font-size: 18px;"></i>
-                <span style="font-size: 13px; font-weight: 600;">Yape</span>
+              <div class="pay-method" id="payYape" onclick="abrirCobroDirecto('yape')" style="padding: 12px; background: rgba(139,92,246,0.12); border: 1.5px solid rgba(139,92,246,0.35); border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s;">
+                <i class="fa fa-mobile-screen" style="display: block; margin-bottom: 4px; font-size: 18px; color: #8b5cf6;"></i>
+                <span style="font-size: 13px; font-weight: 700; color: #7c3aed;">Yape</span>
               </div>
             </div>
             </div>
@@ -4425,6 +4425,76 @@ function renderPOSProducts(q,cat){
 
 let barcodeBuffer='';
 let barcodeTimer=null;
+
+// ========================================
+// ESCÁNER GLOBAL: captura códigos de barra
+// en cualquier parte de la página de ventas
+// ========================================
+(function() {
+  let _barBuffer = '';
+  let _barTimer = null;
+
+  document.addEventListener('keydown', function(e) {
+    // Solo actuar si estamos en la página de ventas
+    const ventasPage = document.getElementById('page-ventas');
+    if (!ventasPage || !ventasPage.classList.contains('active')) return;
+
+    // Si hay un modal abierto, no interceptar
+    const modalOpen = document.querySelector('.modal-overlay.show');
+    if (modalOpen) return;
+
+    // Si el foco está en otro input (distinto al buscador POS), no interceptar
+    const focused = document.activeElement;
+    const posSearchInput = document.querySelector('#page-ventas .table-search input');
+    if (focused && focused !== document.body && focused !== posSearchInput &&
+        (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) {
+      return;
+    }
+
+    // Solo caracteres imprimibles y Enter
+    if (e.key === 'Enter') {
+      if (_barBuffer.length >= 4) {
+        const codigo = _barBuffer.trim();
+        _barBuffer = '';
+        clearTimeout(_barTimer);
+        _procesarCodigoEscaneado(codigo);
+      } else {
+        _barBuffer = '';
+      }
+      return;
+    }
+
+    if (e.key.length === 1) {
+      _barBuffer += e.key;
+      clearTimeout(_barTimer);
+      // Si no hay Enter en 120ms, asumir escritura manual y limpiar
+      _barTimer = setTimeout(() => { _barBuffer = ''; }, 120);
+    }
+  });
+
+  window._procesarCodigoEscaneado = function(codigo) {
+    const prod = productos.find(p =>
+      p.codigo && p.codigo.toLowerCase() === codigo.toLowerCase()
+    );
+    if (prod) {
+      if (prod.esPeso) {
+        openPesoModal(prod.id);
+      } else {
+        addToCart(prod.id);
+        // Limpiar el buscador si tenía algo
+        const inp = document.querySelector('#page-ventas .table-search input');
+        if (inp) { inp.value = ''; renderPOSProducts('', document.getElementById('posCatFilter').value); }
+      }
+    } else if (/^\d+$/.test(codigo)) {
+      // Código numérico no encontrado: abrir modal nuevo producto
+      openNuevoProducto();
+      setTimeout(() => {
+        const barcodeField = document.getElementById('prodBarcode');
+        if (barcodeField) { barcodeField.value = codigo; checkBarcodeExists(codigo); }
+      }, 150);
+    }
+  };
+})();
 
 function filterPOSProducts(inp){
   const q=inp.value.toLowerCase();
