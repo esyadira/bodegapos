@@ -307,13 +307,15 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:var(--bg);color:v
   background:var(--surface);border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;
   padding:12px 0;
-  transition: width 0.25s cubic-bezier(0.16,1,0.3,1);
+  transition: width 0.2s ease, padding 0.2s ease, border 0.2s ease;
   overflow-x: hidden;
+  will-change: width;
 }
 .sidebar.collapsed {
   width: 0 !important;
   border-right: none;
   padding: 0;
+  overflow: hidden;
 }
 .nav-section{padding:4px 12px;margin-top:8px;}
 .nav-section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;margin-bottom:4px;}
@@ -1351,7 +1353,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   <div class="app-body">
     <!-- SIDEBAR -->
-    <nav class="sidebar" id="sidebar">
+    <nav class="sidebar collapsed" id="sidebar">
       <div class="nav-section">
         <div class="nav-section-label">Principal</div>
         <div class="nav-item active" onclick="showPage('dashboard')"><i class="fa fa-gauge-high"></i> Dashboard</div>
@@ -1588,7 +1590,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           <div style="display:flex;gap:8px;align-items:center;">
             <!-- Buscador de cliente inline en el header -->
             <div style="position:relative;">
-              <input type="text" id="clientSearchInput" placeholder="Buscar cliente..." autocomplete="off"
+              <input type="text" id="clientSearchInput" placeholder="🔍 Buscar cliente..." autocomplete="off"
                 style="padding:7px 36px 7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'Sora',sans-serif;font-size:12px;width:180px;transition:all 0.2s;outline:none;"
                 oninput="searchClientPOS(this.value)" onkeypress="crearClienteAlEnter(event)"
                 onfocus="this.style.borderColor='var(--accent)';this.style.width='220px'"
@@ -4800,7 +4802,12 @@ function procesarVenta(){
   document.getElementById('cobroTotal').textContent=`${moneda()} ${total.toFixed(2)}`;
   const clientInfo=selectedClientePOS?`Cliente: ${selectedClientePOS.nombre}`:'Venta sin cliente';
   document.getElementById('cobroClienteInfo').textContent=clientInfo;
-  document.getElementById('cobroMonto').value=total.toFixed(2);
+  // Con cliente: empezar en 0 para que elija cuánto paga; sin cliente: poner total exacto
+  if(selectedClientePOS){
+    document.getElementById('cobroMonto').value='0';
+  } else {
+    document.getElementById('cobroMonto').value=total.toFixed(2);
+  }
   document.getElementById('cobroResultado').style.display='none';
   
   actualizarBotonesCobro();
@@ -4820,8 +4827,13 @@ function calcCambio(){
   const res=document.getElementById('cobroResultado');
   res.style.display='block';
   if(dado===0){
-    res.style.background='rgba(239,68,68,0.1)';res.style.border='1px solid rgba(239,68,68,0.3)';res.style.color='var(--danger)';
-    res.innerHTML=`<i class="fa fa-user-clock" style="margin-right:6px;"></i>Fiar: ${moneda()} ${total.toFixed(2)}`;
+    if(selectedClientePOS){
+      res.style.background='rgba(239,68,68,0.1)';res.style.border='1px solid rgba(239,68,68,0.3)';res.style.color='var(--danger)';
+      res.innerHTML=`<i class="fa fa-user-clock" style="margin-right:6px;"></i>Fiar: ${moneda()} ${total.toFixed(2)}`;
+    } else {
+      res.style.background='rgba(249,115,22,0.1)';res.style.border='1px solid rgba(249,115,22,0.3)';res.style.color='var(--warning)';
+      res.innerHTML=`<i class="fa fa-exclamation-circle" style="margin-right:6px;"></i>Ingresa el monto recibido`;
+    }
   } else if(dado>=total){
     const vuelto=dado-total;
     res.style.background='rgba(16,185,129,0.1)';res.style.border='1px solid rgba(16,185,129,0.3)';res.style.color='var(--accent3)';
@@ -9167,7 +9179,13 @@ function procesarVenta(){
   document.getElementById('cobroTotal').textContent=`${moneda()} ${total.toFixed(2)}`;
   const clientInfo=selectedClientePOS?`Cliente: ${selectedClientePOS.nombre}`:'Venta sin cliente';
   document.getElementById('cobroClienteInfo').textContent=clientInfo;
-  document.getElementById('cobroMonto').value=total.toFixed(2);
+  // Si hay cliente seleccionado, iniciar monto en 0 (para decidir cuánto paga/fía)
+  // Si no hay cliente, poner el total exacto
+  if(selectedClientePOS){
+    document.getElementById('cobroMonto').value='0';
+  } else {
+    document.getElementById('cobroMonto').value=total.toFixed(2);
+  }
   document.getElementById('cobroResultado').style.display='none';
   
   actualizarBotonesCobro();
@@ -9326,16 +9344,21 @@ function toggleSidebar() {
       backdrop.classList.add('show');
     }
   } else {
-    // Desktop: colapsar/expandir inline
-    sidebar.classList.toggle('collapsed');
+    // Desktop: colapsar/expandir inline (sin lag)
+    requestAnimationFrame(() => {
+      sidebar.classList.toggle('collapsed');
+    });
   }
 }
 function closeSidebar() {
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
   sidebar.classList.remove('open');
-  sidebar.classList.remove('collapsed');
   backdrop.classList.remove('show');
+  // En desktop, mantener colapsado
+  if (window.innerWidth > 1024) {
+    sidebar.classList.add('collapsed');
+  }
 }
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-item, .logout-btn').forEach(el => {
