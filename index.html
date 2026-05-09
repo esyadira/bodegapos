@@ -307,9 +307,9 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:var(--bg);color:v
   background:var(--surface);border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;
   padding:12px 0;
-  transition: width 0.2s ease, padding 0.2s ease, border 0.2s ease;
+  transition: none;
   overflow-x: hidden;
-  will-change: width;
+  contain: layout style;
 }
 .sidebar.collapsed {
   width: 0 !important;
@@ -432,7 +432,7 @@ tr:last-child td{border:none;}
 tr:hover td{background:rgba(255,255,255,0.02);}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-green{background:rgba(16,185,129,0.15);color:var(--accent3);}
-.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);min-width:80px;justify-content:center;}
+.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);}
 .badge-red{background:rgba(239,68,68,0.15);color:var(--danger);}
 .badge-blue{background:rgba(var(--accent-rgb,245,158,11),0.15);color:var(--accent);}
 .action-btns{display:flex;gap:6px;}
@@ -524,7 +524,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 .prod-card-cat{font-size:10px;color:var(--text3);margin-bottom:4px;}
 .prod-card-footer{display:flex;align-items:center;justify-content:space-between;}
 .prod-card-price{font-size:14px;font-weight:700;color:var(--accent);}
-.prod-card-stock{font-size:11px;padding:2px 7px;border-radius:20px;}
+.prod-card-stock{font-size:10px;padding:1px 5px;border-radius:10px;font-weight:700;line-height:1.4;}
 
 /* ====== VENTAS / CARRITO ====== */
 /* Layout principal de ventas con altura fija */
@@ -1503,7 +1503,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
             <p>Gestión de inventario y catálogo</p>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
-            <button class="btn btn-secondary btn-sm" onclick="toggleProductView()"><i class="fa fa-grip" id="viewToggleIcon"></i></button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleProductView()"><i class="fa fa-list" id="viewToggleIcon"></i></button>
             <button class="btn btn-primary" onclick="openNuevoProducto()"><i class="fa fa-plus"></i> Nuevo Producto</button>
           </div>
         </div>
@@ -1527,7 +1527,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
             <span id="prodContador" style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(245,158,11,0.1);color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:700;"></span>
           </div>
           
-          <div id="prodListView" style="flex:1; overflow-y:auto; min-height:0;">
+          <div id="prodListView" style="flex:1; overflow-y:auto; min-height:0; display:none;">
             <table id="prodTable" style="width:100%;border-collapse:collapse;">
               <thead style="position:sticky;top:0;z-index:10;background:var(--surface2);">
                 <tr>
@@ -1538,7 +1538,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
               <tbody id="prodTbody"></tbody>
             </table>
           </div>
-          <div id="prodGridView" class="product-grid-view" style="display:none; flex:1; overflow-y:auto; min-height:0;"></div>
+          <div id="prodGridView" class="product-grid-view" style="flex:1; overflow-y:auto; min-height:0;"></div>
         </div>
       </div>
 
@@ -1738,23 +1738,9 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
       <!-- ===== REPORTES ===== -->
       <div class="page" id="page-reportes">
-        <div class="page-header" style="margin-bottom:16px;flex-shrink:0;">
-          <div class="page-title">
-            <h1>Reportes</h1>
-            <p id="repFechaLabel" style="color:var(--text3);font-size:13px;">Cargando...</p>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;">
-              <i class="fa fa-calendar" style="color:var(--text3);font-size:12px;"></i>
-              <input type="date" id="repFechaInput" onchange="renderReportes()" style="background:transparent;border:none;color:var(--text);font-family:'Sora',sans-serif;font-size:13px;outline:none;cursor:pointer;">
-            </div>
-            <button class="btn btn-sm" onclick="eliminarReporteDia()" style="background:rgba(239,68,68,0.12);color:var(--danger);border:1px solid rgba(239,68,68,0.3);"><i class="fa fa-trash"></i> Eliminar día</button>
-            <button class="btn btn-primary btn-sm" onclick="exportarReporteActivo()"><i class="fa fa-file-excel"></i> Exportar Excel</button>
-          </div>
-        </div>
 
-        <!-- Tabs de reportes -->
-        <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <!-- Tabs de reportes + controles alineados -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;border-bottom:1px solid var(--border);flex-shrink:0;">
           <button class="rep-tab-btn active" onclick="showReporte(this,'rep-vendedores')">
             <i class="fa fa-id-badge" style="margin-right:6px;color:#a855f7;"></i>Usuarios
           </button>
@@ -1767,6 +1753,14 @@ tr:hover td{background:rgba(255,255,255,0.02);}
           <button class="rep-tab-btn" onclick="showReporte(this,'rep-inventario')">
             <i class="fa fa-money-bill-wave" style="margin-right:6px;color:#10b981;"></i>Efectivo
           </button>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;">
+              <i class="fa fa-calendar" style="color:var(--text3);font-size:12px;"></i>
+              <input type="date" id="repFechaInput" onchange="renderReportes()" style="background:transparent;border:none;color:var(--text);font-family:'Sora',sans-serif;font-size:13px;outline:none;cursor:pointer;">
+            </div>
+            <button class="btn btn-sm" onclick="eliminarReporteDia()" style="background:rgba(239,68,68,0.12);color:var(--danger);border:1px solid rgba(239,68,68,0.3);"><i class="fa fa-trash"></i> Eliminar día</button>
+            <button class="btn btn-primary btn-sm" onclick="exportarReporteActivo()"><i class="fa fa-file-excel"></i> Exportar</button>
+          </div>
         </div>
 
         <!-- REP DIA -->
@@ -2897,7 +2891,7 @@ let ventasHistorial = JSON.parse(localStorage.getItem('bodega_ventas_historial')
 let pagosProveedoresHistorial = JSON.parse(localStorage.getItem('bodega_pagos_proveedores') || '[]');
 let selectedTurno = '';
 let currentUser = null;
-let prodViewGrid = false;
+let prodViewGrid = true;
 let selectedClientePOS = null;
 let selectedPayMethod = 'efectivo';
 let pendingVentaTotal = 0;
@@ -3207,6 +3201,36 @@ function showPage(pageId) {
     localStorage.setItem('bodega_last_page', pageId);
   }
 
+  // Cerrar sidebar al navegar (desktop y móvil)
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (sidebar) {
+    if (window.innerWidth <= 1024) {
+      sidebar.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('show');
+    } else {
+      sidebar.classList.add('collapsed');
+    }
+  }
+
+  // Quitar foco de cualquier input al cambiar de página
+  if (document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+
+  // Limpiar carrito de POS al salir de ventas
+  if (pageId !== 'ventas') {
+    if (typeof carrito !== 'undefined' && carrito.length > 0) {
+      carrito = [];
+      selectedClientePOS = null;
+      bottleOwed = null;
+      if (typeof clearClientSel === 'function') clearClientSel();
+      if (typeof renderCart === 'function') renderCart();
+      const posInput = document.querySelector('#page-ventas .table-search input');
+      if (posInput) { posInput.value = ''; if (typeof renderPOSProducts === 'function') renderPOSProducts('',''); }
+    }
+  }
+
   // Controlar scroll del main según la página
   const mainEl = document.querySelector('.main');
   if (mainEl) {
@@ -3220,27 +3244,18 @@ function showPage(pageId) {
 
   // 🔥 NUEVO: Reiniciar el panel de configuración al entrar a la sección "configuracion"
   if (pageId === 'configuracion') {
-    // Forzar que se muestre el panel "Negocio" y se active su botón en el menú lateral
     const negocioPanel = document.getElementById('cfg-negocio');
     const configNavItems = document.querySelectorAll('.config-nav-item');
-    
     if (negocioPanel) {
-      // Ocultar todos los paneles de configuración
       document.querySelectorAll('.config-panel').forEach(p => p.style.display = 'none');
-      // Mostrar solo el de negocio
       negocioPanel.style.display = 'block';
     }
-    
-    // Actualizar la clase 'active' en los botones del menú lateral de configuración
     configNavItems.forEach(item => {
       item.classList.remove('active');
-      // Activar el que apunta a 'cfg-negocio'
       if (item.getAttribute('onclick') && item.getAttribute('onclick').includes('cfg-negocio')) {
         item.classList.add('active');
       }
     });
-    
-    // Actualizar la variable global que guarda el panel activo (por si se usa después)
     _cfgPanelActivo = 'cfg-negocio';
   }
 
@@ -3260,7 +3275,6 @@ function showPage(pageId) {
     if (vendPanel) vendPanel.style.display = 'flex';
     renderReportes('rep-vendedores');
   } else {
-    // Al salir de reportes, limpiar filtros KPI
     _filtroMetodoCerveza = 'todos';
     _filtroMetodoYape = 'todos';
     _filtroMetodoEfectivo = 'todos';
@@ -3277,7 +3291,6 @@ function showPage(pageId) {
     if (hadFilter) { renderProdTable(); renderProdGrid(); }
   }
 
-  // No enfocar automáticamente el buscador al cambiar de página
   window._activeSearchSelector = null;
 
   const color = settings.apariencia.colorAcento || '#f59e0b';
@@ -3431,7 +3444,7 @@ function renderProdTable(list){
     const agotado = p.stock <= 0;
     const rowStyle = agotado ? 'opacity:0.5;filter:grayscale(60%);background:var(--surface2);' : '';
     return `
-    <tr style="${rowStyle}">
+    <tr style="${rowStyle}cursor:pointer;" onclick="editProduct(${p.id})" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='${agotado?'var(--surface2)':''}'">
       <td><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);">${p.codigo}</span></td>
       <td><div style="display:flex;align-items:center;gap:10px;">
         ${p.img?`<img src="${p.img}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">`:`<div style="width:32px;height:32px;background:var(--surface3);border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:14px;"><i class="fa fa-image"></i></div>`}
@@ -3448,8 +3461,7 @@ function renderProdTable(list){
       </td>
       <td style="font-weight:700;color:var(--accent);">${moneda()} ${p.precio.toFixed(2)}</td>
       <td><span class="badge ${p.stock>0?'badge-green':'badge-red'}">${p.stock>0?'Activo':'Agotado'}</span></td>
-      <td><div class="action-btns">
-        <div class="icon-btn" title="Editar" onclick="editProduct(${p.id})"><i class="fa fa-pen"></i></div>
+      <td><div class="action-btns" onclick="event.stopPropagation()">
         <div class="icon-btn" title="Ver detalle" onclick="viewProduct(${p.id})"><i class="fa fa-eye"></i></div>
         <div class="icon-btn del" title="Eliminar" onclick="delProduct(${p.id})"><i class="fa fa-trash"></i></div>
       </div></td>
@@ -4418,7 +4430,7 @@ function renderPOSProducts(q,cat){
         <div class="prod-card-name" style="font-size:12px;">${p.nombre}</div>
         <div class="prod-card-footer" style="margin-top:6px;">
           <div class="prod-card-price">${moneda()} ${p.precio.toFixed(2)}</div>
-          <span class="prod-card-stock ${p.stock<=(settings.alertas.minStock||3)&&p.stock>0?'badge-yellow':p.stock<=0?'badge-red':'badge-green'} badge">${p.stock}</span>
+          <span class="prod-card-stock ${p.stock<=(settings.alertas.minStock||3)&&p.stock>0?'badge-yellow':p.stock<=0?'badge-red':'badge-green'}">${p.stock}</span>
         </div>
       </div>
     </div>`;
@@ -4583,10 +4595,17 @@ function addToCart(id){
   const prod=productos.find(p=>p.id===id);
   if(!prod||prod.stock<=0)return showToast('Sin stock disponible','error');
   const ex=carrito.find(c=>c.id===id);
-  if(ex){if(ex.qty>=prod.stock)return showToast('Stock insuficiente','error');ex.qty++;}
-  else carrito.push({...prod,qty:1});
+  if(ex){
+    if(ex.qty>=prod.stock)return showToast('Stock insuficiente','error');
+    ex.qty++;
+    // Mover al frente del carrito para mostrar el último modificado primero
+    const idx=carrito.indexOf(ex);
+    if(idx>0){ carrito.splice(idx,1); carrito.unshift(ex); }
+  } else {
+    carrito.unshift({...prod,qty:1}); // Agregar al inicio
+  }
   renderCart();
-  enfocarBuscarPOS(); // 👈 Agrega esta línea
+  enfocarBuscarPOS();
 }
 
 function removeFromCart(id){carrito=carrito.filter(c=>c.id!==id);renderCart();}
@@ -4986,7 +5005,7 @@ if (notaInput) notaInput.value = '';
       openModal('modalTicket');
   }
   showToast('Venta registrada exitosamente', 'success');
-  enfocarBuscarPOS();
+  // No enfocar el buscador tras la venta
 }
 
 // ========================================
@@ -5003,7 +5022,7 @@ function renderClients(filteredList){
     const limiteDeuda = parseFloat(settings.alertas.montoDeuda) || 100;
     const deudaAlta = c.deuda > limiteDeuda;
     const envases = c.botellas || 0;
-    return`<tr>
+    return`<tr style="cursor:pointer;" onclick="verCuentaCliente(${c.id})" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
       <td><div style="display:flex;align-items:center;gap:8px;"><div class="rs-avatar" style="width:32px;height:32px;font-size:11px;">${c.nombre.split(' ').map(x=>x[0]).join('').slice(0,2)}</div><span style="font-weight:500;">${c.nombre}</span></div></td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${c.tel}</td>
       <td>
@@ -5017,8 +5036,7 @@ function renderClients(filteredList){
       </td>
       <td style="font-size:12px;color:var(--text3);">${c.ultima}</td>
       <td><span class="badge ${deudaAlta?'badge-red':c.deuda>0?'badge-yellow':'badge-green'}">${deudaAlta?'Deuda alta':c.deuda>0?'Con deuda':'Al día'}</span></td>
-      <td><div class="action-btns">
-        <div class="icon-btn" title="Ver cuenta" onclick="verCuentaCliente(${c.id})" style="color:var(--accent);border-color:rgba(var(--accent-rgb,245,158,11),0.3);"><i class="fa fa-file-invoice-dollar"></i></div>
+      <td><div class="action-btns" onclick="event.stopPropagation()">
         <div class="icon-btn" title="Registrar pago" onclick="pagarDeudaCliente(${c.id})" style="color:var(--accent3);border-color:rgba(16,185,129,0.3);${c.deuda<=0?'opacity:0.4;pointer-events:none;':''}"><i class="fa fa-money-bill"></i></div>
         <div class="icon-btn" title="Editar" onclick="editCliente(${c.id})"><i class="fa fa-pen"></i></div>
         <div class="icon-btn del" title="Eliminar" onclick="delClient(${c.id})"><i class="fa fa-trash"></i></div>
@@ -5670,8 +5688,8 @@ function verProductosProveedor(id){
   renderTablaProductosPedido(p);
   renderPedidoLateral();
   openModal('modalProvProductos');
-  // Limpiar buscador al abrir
-  setTimeout(()=>{const b=document.getElementById('pedidoBuscador');if(b){b.value='';b.focus();}},100);
+  // Limpiar buscador al abrir (sin foco automático para no abrir teclado en móvil)
+  setTimeout(()=>{const b=document.getElementById('pedidoBuscador');if(b){b.value='';b.blur();}},100);
 }
 
 function renderTablaProductosPedido(p, filtro=''){
@@ -6090,7 +6108,7 @@ function renderVendedores(){
   const tb=document.getElementById('vendTbody');
   const vc=document.getElementById('vendContador');
   if(vc){const t=vendedores.length;vc.textContent=`${t} vendedor${t!==1?'es':''}`; }
-  tb.innerHTML=vendedores.length===0?`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;"><i class="fa fa-id-badge" style="display:block;font-size:28px;margin-bottom:8px;opacity:0.3;"></i>Sin registros</td></tr>`:vendedores.map(v=>`<tr>
+  tb.innerHTML=vendedores.length===0?`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3);font-size:13px;"><i class="fa fa-id-badge" style="display:block;font-size:28px;margin-bottom:8px;opacity:0.3;"></i>Sin registros</td></tr>`:vendedores.map(v=>`<tr style="cursor:pointer;" onclick="editVendedor(${v.id})" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
     <td><div style="display:flex;align-items:center;gap:10px;">
       ${v.foto
         ? `<img src="${v.foto}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">`
@@ -6101,11 +6119,9 @@ function renderVendedores(){
     <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">@${v.usuario}</span></td>
     <td><div style="display:flex;flex-wrap:wrap;gap:4px;">${v.esAdmin?`<span class="badge badge-yellow" style="font-size:10px;">Todos los permisos</span>`:((v.permisos||[]).map(p=>`<span class="badge badge-yellow" style="font-size:10px;">${p}</span>`).join(''))}</div></td>
     <td><span class="badge ${v.estado==='activo'?'badge-green':'badge-red'}">${v.estado}</span></td>
-    <td><div class="action-btns">
-      ${!v.esAdmin?`<div class="icon-btn" title="Editar" onclick="editVendedor(${v.id})"><i class="fa fa-pen"></i></div>
-      <div class="icon-btn del" title="Eliminar" onclick="delVend(${v.id})"><i class="fa fa-trash"></i></div>`
-      :`<div class="icon-btn" title="Editar" onclick="editVendedor(${v.id})"><i class="fa fa-pen"></i></div>
-      <div class="icon-btn" title="Administrador — no se puede eliminar" style="opacity:0.3;cursor:not-allowed;"><i class="fa fa-lock"></i></div>`}
+    <td><div class="action-btns" onclick="event.stopPropagation()">
+      ${!v.esAdmin?`<div class="icon-btn del" title="Eliminar" onclick="delVend(${v.id})"><i class="fa fa-trash"></i></div>`
+      :`<div class="icon-btn" title="Administrador — no se puede eliminar" style="opacity:0.3;cursor:not-allowed;"><i class="fa fa-lock"></i></div>`}
     </div></td>
   </tr>`).join('');
   // Actualizar selector del reporte de vendedores si está visible
@@ -7312,35 +7328,12 @@ function renderMonthChart(){
 // ========================================
 function openModal(id){
   document.getElementById(id).classList.add('show');
-  // No auto-enfocar el modal de cobro para no abrir el teclado virtual
-  if(id === 'modalCobro') return;
-  setTimeout(()=>{
-    const modal = document.getElementById(id);
-    if(!modal) return;
-    const first = modal.querySelector('input:not([type=hidden]):not([type=file]):not([readonly]), textarea, select');
-    if(first){ first.focus(); first.select && first.select(); }
-  }, 80);
+  // No auto-enfocar ningún input para no mover la barra de escritura
 }
 function closeModal(id){
   document.getElementById(id).classList.remove('show');
-  // Volver el foco al buscador de la página activa
-  const activePage = document.querySelector('.page.active');
-  if (!activePage) return;
-  const pageId = activePage.id.replace('page-', '');
-  const searchFocusMap = {
-    'ventas':       '#page-ventas .table-search input',
-    'productos':    '#prodSearchInput',
-    'clientes':     '#clientSearchBox',
-    'categorias':   '#catSearchInput',
-    'proveedores':  '#provSearchInput',
-    'vendedores':   '#vendSearchInput',
-  };
-  if (searchFocusMap[pageId]) {
-    setTimeout(() => {
-      const el = document.querySelector(searchFocusMap[pageId]);
-      if (el) { el.focus(); el.select(); }
-    }, 80);
-  }
+  // No enfocar automáticamente ningún buscador al cerrar modal
+  // para evitar abrir el teclado virtual o mover la barra de escritura
 }
 document.querySelectorAll('.modal-overlay').forEach(m=>{
   m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');});
@@ -7569,11 +7562,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 2. RECUPERAR VISTA DE PRODUCTOS:
     const vistaGuardada = localStorage.getItem('bodega_prod_view_mode');
-    if (vistaGuardada === 'grid') {
-      // Si estaba en cuadrícula, activamos el toggle
-      prodViewGrid = false; // Lo ponemos en false para que toggleProductView lo cambie a true
+    if (vistaGuardada === 'list') {
+      // Si guardó lista, cambiar a lista (ya arranca en grid)
+      prodViewGrid = true; // toggleProductView lo cambia a false (list)
       toggleProductView();
     }
+    // Si no hay preferencia o es 'grid', quedarse en grid (default)
   }
 });
 
@@ -8796,7 +8790,7 @@ function renderRepVendedores() {
     return;
   }
 
-  ventas.forEach(v => {
+  ventas.slice().reverse().forEach(v => {
     const vendName = normalizarVend(v.vendedor || 'Admin');
     const esFiadoTotal = (v.pagado === 0 && v.total > 0);
     const esFiadoParcial = (v.pagado > 0 && v.pagado < v.total);
