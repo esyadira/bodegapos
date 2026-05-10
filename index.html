@@ -2678,6 +2678,12 @@ async function sbInicializar() {
     _sbConectado = true;
     sbActualizarIndicador(true);
     await sbCargarDesdeNube();
+    // ☁️ Auto-guardado silencioso cada 1 segundo
+    if (!window._sbAutoSaveInterval) {
+      window._sbAutoSaveInterval = setInterval(async () => {
+        if (_sbConectado) await sbGuardarEnNube();
+      }, 1000);
+    }
     console.log('Supabase conectado OK');
   } catch(e) {
     _sbConectado = false;
@@ -2712,8 +2718,10 @@ async function sbGuardarEnNube() {
   try {
     const { error } = await _supabase.from('bodega_sync').upsert(payload, { onConflict: 'tienda' });
     if (error) throw error;
+    const ahora = new Date();
+    const horaFmt = ahora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const ind = document.getElementById('sbLastSync');
-    if (ind) ind.textContent = 'Última sync: ' + new Date().toLocaleTimeString('es-PE');
+    if (ind) ind.textContent = 'Último guardado: ' + horaFmt;
   } catch(e) { console.warn('Error guardando en nube:', e.message); }
 }
 
@@ -2768,7 +2776,7 @@ async function sbCargarDesdeNube() {
     renderProdTable(); renderProdGrid(); renderPOSProducts();
     renderClients(); renderProveedores(); renderVendedores();
     actualizarDashboardReal(); actualizarNotificaciones(); updateStockBajoCount();
-    showToast('Datos sincronizados desde la nube ☁️', 'success');
+    // showToast silenciado — sync automático sin notificación
   } catch(e) { console.warn('Error cargando desde nube:', e.message); }
 }
 
@@ -2793,6 +2801,7 @@ function sbDesconectar() {
   if (!confirm('¿Desconectar la nube? Tus datos locales se mantendrán.')) return;
   localStorage.removeItem('bodega_supabase_cfg');
   _supabase = null; _sbConectado = false;
+  if (window._sbAutoSaveInterval) { clearInterval(window._sbAutoSaveInterval); window._sbAutoSaveInterval = null; }
   sbActualizarIndicador(false);
   sbRenderCfgPanel();
   showToast('Desconectado de la nube', 'success');
@@ -2808,7 +2817,7 @@ function sbRenderCfgPanel() {
         <div id="sbStatusDot" style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:pulse-dot 2s infinite;flex-shrink:0;"></div>
         <div>
           <div id="sbStatusTxt" style="font-size:13px;font-weight:600;color:#10b981;">Conectado a la nube ✓</div>
-          <div id="sbLastSync" style="font-size:11px;color:var(--text3);">Sincronizando automáticamente</div>
+          <div id="sbLastSync" style="font-size:11px;color:var(--text3);">Guardando automáticamente cada segundo...</div>
         </div>
         <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="sbDesconectar()"><i class="fa fa-plug-circle-xmark"></i> Desconectar</button>
       </div>
