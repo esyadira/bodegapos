@@ -374,11 +374,13 @@ html,body{height:100%;font-family:'Sora',sans-serif;background:var(--bg);color:v
 /* ====== CARDS ====== */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:30px 20px;position:relative;overflow:hidden;}
 .stat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--glow,rgba(245,158,11,0.04)),transparent);}
-.stat-icon{width:42px;height:42px;border-radius:10px;background:var(--icon-bg,rgba(245,158,11,0.12));color:var(--icon-c,var(--accent));display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
-.stat-label{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
-.stat-value{font-size:26px;font-weight:700;letter-spacing:-1px;}
+.stat-icon{width:42px;height:42px;border-radius:10px;background:var(--icon-bg,rgba(245,158,11,0.12));color:var(--icon-c,var(--accent));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.stat-card-inner{display:flex;align-items:center;gap:14px;}
+.stat-card-text{display:flex;flex-direction:column;justify-content:center;min-width:0;}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;}
+.stat-value{font-size:26px;font-weight:700;letter-spacing:-1px;line-height:1;}
 .stat-sub{font-size:12px;color:var(--text3);margin-top:4px;}
 .stat-sub .up{color:var(--accent3);}
 .stat-sub .down{color:var(--danger);}
@@ -434,7 +436,8 @@ tr:last-child td{border:none;}
 tr:hover td{background:rgba(255,255,255,0.02);}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
 .badge-green{background:rgba(16,185,129,0.15);color:var(--accent3);}
-.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);min-width:80px;justify-content:center;}
+.badge-yellow{background:rgba(245,158,11,0.15);color:var(--accent);}
+.table-wrap .badge-yellow{min-width:80px;justify-content:center;}
 .badge-red{background:rgba(239,68,68,0.15);color:var(--danger);}
 .badge-blue{background:rgba(var(--accent-rgb,245,158,11),0.15);color:var(--accent);}
 .action-btns{display:flex;gap:6px;}
@@ -1388,23 +1391,41 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="dashboard-container" style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa fa-sack-dollar"></i></div>
-            <div class="stat-label">Ventas Hoy</div>
-            <div class="stat-value" id="dashVentasHoy">S/. 0.00</div> </div>
+            <div class="stat-card-inner">
+              <div class="stat-icon"><i class="fa fa-sack-dollar"></i></div>
+              <div class="stat-card-text">
+                <div class="stat-label">Ventas Hoy</div>
+                <div class="stat-value" id="dashVentasHoy">S/. 0.00</div>
+              </div>
+            </div>
+          </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fa fa-receipt"></i></div>
-            <div class="stat-label">Transacciones</div>
-            <div class="stat-value" id="dashTransacciones">0</div> </div>
+            <div class="stat-card-inner">
+              <div class="stat-icon"><i class="fa fa-receipt"></i></div>
+              <div class="stat-card-text">
+                <div class="stat-label">Transacciones</div>
+                <div class="stat-value" id="dashTransacciones">0</div>
+              </div>
+            </div>
+          </div>
           <div class="stat-card" onclick="abrirModalStockBajo()" style="cursor:pointer;">
-            <div class="stat-icon"><i class="fa fa-triangle-exclamation"></i></div>
-            <div class="stat-label">Stock Bajo</div>
-            <div class="stat-value" id="stockBajoCount">0</div>
+            <div class="stat-card-inner">
+              <div class="stat-icon"><i class="fa fa-triangle-exclamation"></i></div>
+              <div class="stat-card-text">
+                <div class="stat-label">Stock Bajo</div>
+                <div class="stat-value" id="stockBajoCount">0</div>
+              </div>
+            </div>
           </div>
 
 <div class="stat-card" onclick="abrirModalDeudaAlta()" style="cursor:pointer;">
-  <div class="stat-icon"><i class="fa fa-hand-holding-dollar"></i></div>
-  <div class="stat-label">Deuda Alta</div>
-  <div class="stat-value" id="deudaAltaCount">0</div>
+  <div class="stat-card-inner">
+    <div class="stat-icon"><i class="fa fa-hand-holding-dollar"></i></div>
+    <div class="stat-card-text">
+      <div class="stat-label">Deuda Alta</div>
+      <div class="stat-value" id="deudaAltaCount">0</div>
+    </div>
+  </div>
 </div>
         </div>
 
@@ -2678,12 +2699,6 @@ async function sbInicializar() {
     _sbConectado = true;
     sbActualizarIndicador(true);
     await sbCargarDesdeNube();
-    // ☁️ Auto-guardado silencioso cada 1 segundo
-    if (!window._sbAutoSaveInterval) {
-      window._sbAutoSaveInterval = setInterval(async () => {
-        if (_sbConectado) await sbGuardarEnNube();
-      }, 1000);
-    }
     console.log('Supabase conectado OK');
   } catch(e) {
     _sbConectado = false;
@@ -2718,10 +2733,8 @@ async function sbGuardarEnNube() {
   try {
     const { error } = await _supabase.from('bodega_sync').upsert(payload, { onConflict: 'tienda' });
     if (error) throw error;
-    const ahora = new Date();
-    const horaFmt = ahora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const ind = document.getElementById('sbLastSync');
-    if (ind) ind.textContent = 'Último guardado: ' + horaFmt;
+    if (ind) ind.textContent = 'Última sync: ' + new Date().toLocaleTimeString('es-PE');
   } catch(e) { console.warn('Error guardando en nube:', e.message); }
 }
 
@@ -2776,7 +2789,7 @@ async function sbCargarDesdeNube() {
     renderProdTable(); renderProdGrid(); renderPOSProducts();
     renderClients(); renderProveedores(); renderVendedores();
     actualizarDashboardReal(); actualizarNotificaciones(); updateStockBajoCount();
-    // showToast silenciado — sync automático sin notificación
+    showToast('Datos sincronizados desde la nube ☁️', 'success');
   } catch(e) { console.warn('Error cargando desde nube:', e.message); }
 }
 
@@ -2801,7 +2814,6 @@ function sbDesconectar() {
   if (!confirm('¿Desconectar la nube? Tus datos locales se mantendrán.')) return;
   localStorage.removeItem('bodega_supabase_cfg');
   _supabase = null; _sbConectado = false;
-  if (window._sbAutoSaveInterval) { clearInterval(window._sbAutoSaveInterval); window._sbAutoSaveInterval = null; }
   sbActualizarIndicador(false);
   sbRenderCfgPanel();
   showToast('Desconectado de la nube', 'success');
@@ -2817,7 +2829,7 @@ function sbRenderCfgPanel() {
         <div id="sbStatusDot" style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:pulse-dot 2s infinite;flex-shrink:0;"></div>
         <div>
           <div id="sbStatusTxt" style="font-size:13px;font-weight:600;color:#10b981;">Conectado a la nube ✓</div>
-          <div id="sbLastSync" style="font-size:11px;color:var(--text3);">Guardando automáticamente cada segundo...</div>
+          <div id="sbLastSync" style="font-size:11px;color:var(--text3);">Sincronizando automáticamente</div>
         </div>
         <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="sbDesconectar()"><i class="fa fa-plug-circle-xmark"></i> Desconectar</button>
       </div>
@@ -4449,7 +4461,7 @@ function renderPOSProducts(q,cat){
         <div class="prod-card-name" style="font-size:12px;">${p.nombre}</div>
         <div class="prod-card-footer" style="margin-top:6px;">
           <div class="prod-card-price">${moneda()} ${p.precio.toFixed(2)}</div>
-          <span class="prod-card-stock ${p.stock<=(settings.alertas.minStock||3)&&p.stock>0?'badge-yellow':p.stock<=0?'badge-red':'badge-green'}">${p.stock}</span>
+          <span class="prod-card-stock badge ${p.stock<=(settings.alertas.minStock||3)&&p.stock>0?'badge-yellow':p.stock<=0?'badge-red':'badge-green'}">${p.stock}</span>
         </div>
       </div>
     </div>`;
