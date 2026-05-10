@@ -1883,7 +1883,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
                 <tr>
                   <th style="width: 50px;">Fecha</th>
                   <th style="width: 100px;">Hora</th>
-                  <th style="width: 100px;">Cliente</th>
+                  <th style="width: 150px;">Cliente</th>
                   <th style="width: 250px;">Productos</th>
                   <th style="width: 100px;">Método</th>
                   <th style="width: 120px; text-align:right;">Monto</th>
@@ -6526,7 +6526,7 @@ function renderRepDia(fecha) {
       
       filasTabla.push({
         hora: v.hora || '—',
-        timestamp: new Date(v.fechaISO + 'T' + (v.hora || '00:00')).getTime() || 0,
+        timestamp: _tsVenta(v.fechaISO, v.hora),
         vendedor: vendedor,
         cliente: v.cliente || 'Público General',
         producto: item.nombre || 'Producto',
@@ -6549,7 +6549,7 @@ function renderRepDia(fecha) {
     abonosDia.forEach(ab => {
       filasTabla.push({
         hora: ab.hora || '—',
-        timestamp: new Date(ab.fechaISO + 'T' + (ab.hora || '00:00')).getTime() || 0,
+        timestamp: _tsVenta(ab.fechaISO, ab.hora),
         vendedor: 'Cobro',
         cliente: ab.cliente,
         producto: `<i class="fa fa-hand-holding-dollar" style="margin-right:6px; color:#7c3aed;"></i> Abono de deuda`,
@@ -6574,7 +6574,7 @@ function renderRepDia(fecha) {
       pp.items.forEach(it => {
         filasTabla.push({
           hora: pp.hora || '—',
-          timestamp: new Date(pp.fechaISO + 'T' + (pp.hora || '00:00')).getTime() || 0,
+          timestamp: _tsVenta(pp.fechaISO, pp.hora),
           vendedor: 'Proveedor',
           cliente: pp.proveedor,
           producto: `📦 ${it.nombre} (pedido)`,
@@ -6593,7 +6593,7 @@ function renderRepDia(fecha) {
     } else {
       filasTabla.push({
         hora: pp.hora || '—',
-        timestamp: new Date(pp.fechaISO + 'T' + (pp.hora || '00:00')).getTime() || 0,
+        timestamp: _tsVenta(pp.fechaISO, pp.hora),
         vendedor: 'Proveedor',
         cliente: pp.proveedor,
         producto: '🚚 PAGO A PROVEEDOR',
@@ -6722,6 +6722,26 @@ function itemEsHelado(itemNombre) {
   return esHelado(itemNombre);
 }
 
+// Convierte hora en formato "05:15 p. m." o "05:15" a minutos desde medianoche
+function _horaAMinutos(hora) {
+  if (!hora || hora === '—') return 0;
+  const clean = hora.replace(/\s/g, '').toLowerCase();
+  const esPM = clean.includes('p.m') || clean.includes('pm');
+  const esAM = clean.includes('a.m') || clean.includes('am');
+  const nums = clean.replace(/[^0-9:]/g, '');
+  const [h, m] = nums.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return 0;
+  let hh = h;
+  if (esPM && hh < 12) hh += 12;
+  if (esAM && hh === 12) hh = 0;
+  return hh * 60 + m;
+}
+// Devuelve un timestamp comparable para ordenar: usa fechaISO + hora parseada
+function _tsVenta(fechaISO, hora) {
+  const base = fechaISO ? new Date(fechaISO + 'T00:00:00').getTime() : 0;
+  return base + _horaAMinutos(hora) * 60000;
+}
+
 function renderRepProducto(fecha, tipo) {
   const esFn = tipo==='cerveza' ? itemEsCerveza : itemEsHelado;
   const emoji = tipo==='cerveza' ? '🍺' : '🍦';
@@ -6813,8 +6833,8 @@ function renderRepProducto(fecha, tipo) {
     return;
   }
   tbody.innerHTML = lineasFiltradas.slice().sort((a,b)=>{
-    const ta = new Date((a.fechaISO||'')+'T'+(a.hora||'00:00')).getTime()||0;
-    const tb = new Date((b.fechaISO||'')+'T'+(b.hora||'00:00')).getTime()||0;
+    const ta = _tsVenta(a.fechaISO, a.hora);
+    const tb = _tsVenta(b.fechaISO, b.hora);
     return tb - ta;
   }).map(l=>{
     const metodoBadge = l.metodo==='yape'
@@ -6977,7 +6997,7 @@ function renderRepYape(fecha) {
         rowBg = 'background:var(--surface);';
         montoHTML = `<span style="font-weight:700;color:#7c3aed;">${moneda()} ${subtotal.toFixed(2)}</span>`;
       }
-      filasVentas.push({ tipo:'venta', timestamp: new Date(v.fechaISO+'T'+(v.hora||'00:00')).getTime()||0,
+      filasVentas.push({ tipo:'venta', timestamp: _tsVenta(v.fechaISO, v.hora),
         html:`<tr style="${rowBg}">
           <td style="font-size:12px;color:var(--text3);">${v.fecha||'—'}</td>
           <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${v.hora||'—'}</td>
@@ -6994,7 +7014,7 @@ function renderRepYape(fecha) {
   const filasAbonos = [];
   if (abonosYape.length > 0) {
     filasAbonos.push({ tipo:'separador_abonos', timestamp:0, html:`<tr style="background:rgba(59,130,246,0.06);"><td colspan="7" style="padding:8px 18px;border-top:2px dashed var(--border);border-bottom:1px solid var(--border);font-size:11px;color:#7c3aed;font-weight:700;text-transform:uppercase;letter-spacing:1px;"><i class="fa fa-hand-holding-dollar" style="margin-right:8px;"></i> ABONOS DE DEUDA</td></tr>` });
-    abonosYape.forEach(p => filasAbonos.push({ tipo:'abono', timestamp: new Date(p.fechaISO+'T'+(p.hora||'00:00')).getTime()||0,
+    abonosYape.forEach(p => filasAbonos.push({ tipo:'abono', timestamp: _tsVenta(p.fechaISO, p.hora),
       html:`<tr style="background:rgba(124,58,237,0.04);">
         <td style="font-size:12px;color:var(--text3);">${p.fecha}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${p.hora}</td>
@@ -7012,7 +7032,7 @@ function renderRepYape(fecha) {
     filasProveedores.push({ tipo:'separador_prov', timestamp:0, html:`<tr style="background:rgba(249,115,22,0.06);"><td colspan="7" style="padding:8px 18px;border-top:2px dashed var(--border);border-bottom:1px solid var(--border);font-size:11px;color:var(--warning);font-weight:700;text-transform:uppercase;letter-spacing:1px;"><i class="fa fa-truck" style="margin-right:8px;"></i> PAGOS A PROVEEDORES</td></tr>` });
     pagosProveedoresYape.forEach(pp => {
       const itemsTxt = (pp.items||[]).map(it=>`${it.nombre} x${it.qty}`).join(', ')||'Pedido';
-      filasProveedores.push({ tipo:'pago_prov', timestamp: new Date(pp.fechaISO+'T'+(pp.hora||'00:00')).getTime()||0,
+      filasProveedores.push({ tipo:'pago_prov', timestamp: _tsVenta(pp.fechaISO, pp.hora),
         html:`<tr style="background:rgba(249,115,22,0.04);">
           <td style="font-size:12px;color:var(--text3);">${pp.fecha||'—'}</td>
           <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${pp.hora||'—'}</td>
@@ -7165,7 +7185,7 @@ function renderInvTabla(data) {
         rowBg='background:var(--surface);';
         montoHTML=`<span style="font-weight:700;color:#10b981;">${moneda()} ${subtotal.toFixed(2)}</span>`;
       }
-      filasVentas.push({tipo:'venta',timestamp:new Date(v.fechaISO+'T'+(v.hora||'00:00')).getTime()||0,
+      filasVentas.push({tipo:'venta',timestamp:_tsVenta(v.fechaISO, v.hora),
         html:`<tr style="${rowBg}">
           <td style="font-size:12px;color:var(--text3);">${v.fecha||'—'}</td>
           <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${v.hora||'—'}</td>
@@ -7182,7 +7202,7 @@ function renderInvTabla(data) {
   const filasAbonos=[];
   if(pagosDeuda.length>0){
     filasAbonos.push({tipo:'separador_abonos',timestamp:0,html:`<tr style="background:rgba(59,130,246,0.06);"><td colspan="7" style="padding:8px 18px;border-top:2px dashed var(--border);border-bottom:1px solid var(--border);font-size:11px;color:var(--accent3);font-weight:700;text-transform:uppercase;letter-spacing:1px;"><i class="fa fa-hand-holding-dollar" style="margin-right:8px;"></i> ABONOS DE DEUDA</td></tr>`});
-    pagosDeuda.forEach(p=>filasAbonos.push({tipo:'abono',timestamp:new Date(p.fechaISO+'T'+(p.hora||'00:00')).getTime()||0,
+    pagosDeuda.forEach(p=>filasAbonos.push({tipo:'abono',timestamp:_tsVenta(p.fechaISO, p.hora),
       html:`<tr style="background:rgba(59,130,246,0.03);">
         <td style="font-size:12px;color:var(--text3);">${p.fecha}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${p.hora}</td>
@@ -7200,7 +7220,7 @@ function renderInvTabla(data) {
     filasProveedores.push({tipo:'separador_prov',timestamp:0,html:`<tr style="background:rgba(249,115,22,0.06);"><td colspan="7" style="padding:8px 18px;border-top:2px dashed var(--border);border-bottom:1px solid var(--border);font-size:11px;color:var(--warning);font-weight:700;text-transform:uppercase;letter-spacing:1px;"><i class="fa fa-truck" style="margin-right:8px;"></i> PAGOS A PROVEEDORES</td></tr>`});
     pagosProveedores.forEach(pp=>{
       const itemsTxt=(pp.items||[]).map(it=>`${it.nombre} x${it.qty}`).join(', ')||'Pedido';
-      filasProveedores.push({tipo:'pago_prov',timestamp:new Date(pp.fechaISO+'T'+(pp.hora||'00:00')).getTime()||0,
+      filasProveedores.push({tipo:'pago_prov',timestamp:_tsVenta(pp.fechaISO, pp.hora),
         html:`<tr style="background:rgba(249,115,22,0.03);">
           <td style="font-size:12px;color:var(--text3);">${pp.fecha||'—'}</td>
           <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);">${pp.hora||'—'}</td>
