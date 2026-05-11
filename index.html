@@ -2457,6 +2457,33 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   </div>
 </div>
 
+<!-- Modal Confirmar Eliminar Cliente -->
+<div class="modal-overlay" id="modalConfirmDelCliente">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3><i class="fa fa-triangle-exclamation" style="color:var(--danger);margin-right:8px;"></i>Eliminar Cliente</h3>
+      <div class="modal-close" onclick="closeModal('modalConfirmDelCliente')"><i class="fa fa-xmark"></i></div>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:28px 24px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;color:var(--danger);">
+        <i class="fa fa-user-xmark"></i>
+      </div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:8px;">¿Estás segura que quieres eliminar a:</p>
+      <div id="confirmDelClienteNombre" style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px;letter-spacing:-0.5px;"></div>
+      <div id="confirmDelClienteTel" style="font-size:12px;color:var(--text3);margin-bottom:20px;"></div>
+      <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);margin-bottom:4px;">
+        <i class="fa fa-circle-info" style="margin-right:6px;"></i>Se borrará su historial y deuda. Esta acción no se puede deshacer.
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-secondary" onclick="closeModal('modalConfirmDelCliente')" style="flex:1;">Cancelar</button>
+      <button class="btn" id="confirmDelClienteBtn" style="flex:1;background:var(--danger);color:#fff;border:none;margin-left:10px;" onclick="confirmarEliminarCliente()">
+        <i class="fa fa-trash" style="margin-right:6px;"></i>Sí, eliminar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Pagar Deuda Cliente -->
 <div class="modal-overlay" id="modalPagarDeuda">
   <div class="modal" style="max-width:420px;">
@@ -5109,7 +5136,92 @@ function openNuevoCliente(){
   document.getElementById('cTel').value='';
   openModal('modalCliente');
 }
-function delClient(id){if(cfgConfirm('¿Eliminar cliente?')){clientes=clientes.filter(c=>c.id!==id);renderClients();guardarTodoEnLocalStorage();showToast('Cliente eliminado','success');}}
+// ID temporal para el cliente que se va a eliminar
+let _pendingDelClienteId = null;
+
+function delClient(id){
+  const c = clientes.find(x => x.id === id);
+  if (!c) return;
+  _pendingDelClienteId = id;
+  document.getElementById('confirmDelClienteNombre').textContent = c.nombre;
+  document.getElementById('confirmDelClienteTel').textContent = c.tel && c.tel !== '---' ? '📞 ' + c.tel : '';
+  openModal('modalConfirmDelCliente');
+}
+
+function confirmarEliminarCliente(){
+  if (!_pendingDelClienteId) return;
+  clientes = clientes.filter(c => c.id !== _pendingDelClienteId);
+  _pendingDelClienteId = null;
+  closeModal('modalConfirmDelCliente');
+  renderClients();
+  guardarTodoEnLocalStorage();
+  showToast('Cliente eliminado', 'success');
+}
+
+// Eliminar un producto individual de la cuenta fiada de un cliente
+function eliminarProductoDeCuenta(clienteId, histIdx, prodIdx) {
+  const c = clientes.find(x => x.id === clienteId);
+  if (!c) return;
+  // histPendiente es un filtro de c.historial, necesitamos el índice real
+  const histPendiente = c.historial.filter(h => h.total > h.pagado);
+  const h = histPendiente[histIdx];
+  if (!h) return;
+  const realHIdx = c.historial.indexOf(h);
+  if (realHIdx === -1) return;
+
+  const p = h.productos[prodIdx];
+  if (!p) return;
+  const nombreProd = (p.nombre || 'este producto').toUpperCase();
+  const lineTotal = (p.precio || 0) * (p.qty || 1);
+
+  if (!cfgConfirm(`¿Eliminar "${nombreProd}" (${moneda()} ${lineTotal.toFixed(2)}) de la cuenta?`)) return;
+
+  // Reponer stock del producto eliminado
+  const prod = productos.find(x => x.nombre && x.nombre.toLowerCase() === (p.nombre||'').toLowerCase());
+  if (prod) prod.stock = (prod.stock || 0) + (p.qty || 1);
+
+  // Quitar el producto
+  c.historial[realHIdx].productos.splice(prodIdx, 1);
+
+  // Recalcular total de esa venta
+  const nuevosProds = c.historial[realHIdx].productos;
+  const nuevoTotal = nuevosProds.reduce((s, pr) => s + (pr.precio||0)*(pr.qty||1), 0) - (c.historial[realHIdx].pagadoAlComprar || 0);
+  c.historial[realHIdx].total = Math.max(0, nuevoTotal);
+
+  // Si quedó en 0 productos o deuda 0, marcar como pagado
+  if (nuevosProds.length === 0 || c.historial[realHIdx].total <= 0) {
+    c.historial[realHIdx].pagado = c.historial[realHIdx].total;
+  }
+
+  // Recalcular deuda total del cliente
+  c.deuda = c.historial.reduce((s, h2) => s + Math.max(0, h2.total - h2.pagado), 0);
+
+  // Sincronizar ventasHistorial: eliminar el producto de la venta correspondiente
+  const nombreBuscar = (p.nombre || '').toLowerCase();
+  const ventaMatch = ventasHistorial.find(v =>
+    (v.cliente === c.nombre) &&
+    (v.fecha === h.fecha || v.fechaISO === h.fechaISO) &&
+    (v.hora === h.hora)
+  );
+  if (ventaMatch) {
+    // Quitar de items
+    if (ventaMatch.items) ventaMatch.items = ventaMatch.items.filter(i => (i.nombre||'').toLowerCase() !== nombreBuscar);
+    // Quitar de productos
+    if (ventaMatch.productos) ventaMatch.productos = ventaMatch.productos.filter(i => (i.nombre||'').toLowerCase() !== nombreBuscar);
+    // Si la venta quedó sin productos, eliminarla del historial
+    if ((!ventaMatch.items || ventaMatch.items.length === 0) && (!ventaMatch.productos || ventaMatch.productos.length === 0)) {
+      ventasHistorial = ventasHistorial.filter(v => v !== ventaMatch);
+    }
+  }
+
+  guardarTodoEnLocalStorage();
+  renderProdTable(); renderProdGrid(); renderPOSProducts();
+  renderClients();
+  if (typeof renderReportes === 'function') renderReportes(_getPanelActivo());
+  if (typeof actualizarDashboardReal === 'function') actualizarDashboardReal();
+  showToast(`"${nombreProd}" eliminado de la cuenta`, 'success');
+  verCuentaCliente(clienteId); // recargar el modal
+}
 
 function filterClients(){
   const q=document.getElementById('clientSearchBox').value.toLowerCase();
@@ -5198,14 +5310,15 @@ function verCuentaCliente(id) {
             <th style="padding:10px; text-align:left;">PRODUCTO</th>
             <th style="padding:10px; text-align:center;">CANT.</th>
             <th style="padding:10px; text-align:right;">PENDIENTE</th>
+            <th style="padding:10px; text-align:center; width:40px;"></th>
           </tr>
         </thead>
         <tbody>`;
 
   if (histPendiente.length === 0) {
-    html += `<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text3);">No hay productos nuevos</td></tr>`;
+    html += `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">No hay productos nuevos</td></tr>`;
   } else {
-    histPendiente.forEach(h => {
+    histPendiente.forEach((h, hIdx) => {
       const prods = h.productos || [];
       // Calcular el total bruto real de los productos
       const totalBruto = prods.reduce((s, p) => s + (p.precio || 0) * (p.qty || 1), 0);
@@ -5220,7 +5333,7 @@ function verCuentaCliente(id) {
       }
       // Aplicar el pago secuencialmente: primero cubre el primer producto, luego el siguiente, etc.
       let restoPagado = pagadoVenta;
-      prods.forEach(p => {
+      prods.forEach((p, pIdx) => {
         const lineTotal = (p.precio || 0) * (p.qty || 1);
         const cubierto = Math.min(restoPagado, lineTotal);
         restoPagado = Math.max(0, restoPagado - lineTotal);
@@ -5240,6 +5353,13 @@ function verCuentaCliente(id) {
             <td style="padding:10px;font-weight:500;">${(p.nombre||'').toUpperCase()}</td>
             <td style="padding:10px;text-align:center;">x${p.qty || 1}</td>
             ${celdaPendiente}
+            <td style="padding:6px;text-align:center;">
+              <button onclick="eliminarProductoDeCuenta(${c.id}, ${hIdx}, ${pIdx})" title="Eliminar este producto de la cuenta"
+                style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--danger);border-radius:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:all 0.15s;"
+                onmouseenter="this.style.background='rgba(239,68,68,0.22)'" onmouseleave="this.style.background='rgba(239,68,68,0.1)'">
+                <i class="fa fa-trash-can"></i>
+              </button>
+            </td>
           </tr>`;
         }
       });
@@ -6391,20 +6511,55 @@ function eliminarLineaVenta(ventaId, itemIndex) {
   const venta = ventasHistorial.find(v => v.id === ventaId);
   if (!venta) { showToast('No se encontró el registro', 'error'); return; }
   const items = venta.items || venta.productos || [];
+  const item = items[itemIndex];
+  if (!item) return;
+
+  const nombreItem = (item.nombre || '').toLowerCase();
+  const cantItem = item.cant || item.qty || 1;
+
+  // 1. Reponer stock
+  const prod = productos.find(x => (x.nombre||'').toLowerCase() === nombreItem);
+  if (prod) prod.stock = (prod.stock || 0) + cantItem;
+
+  // 2. Sincronizar cuenta del cliente si la venta era fiada
+  if (venta.cliente && venta.cliente !== 'Público General') {
+    const c = clientes.find(x => x.nombre === venta.cliente);
+    if (c) {
+      const hMatch = c.historial.find(h =>
+        (h.fecha === venta.fecha || h.fechaISO === venta.fechaISO) && h.hora === venta.hora
+      );
+      if (hMatch) {
+        const realIdx = c.historial.indexOf(hMatch);
+        c.historial[realIdx].productos = (c.historial[realIdx].productos || [])
+          .filter(p => (p.nombre||'').toLowerCase() !== nombreItem);
+        const nuevosProds = c.historial[realIdx].productos;
+        const totalBruto = nuevosProds.reduce((s, p) => s + (p.precio||0)*(p.qty||1), 0);
+        const nuevoTotal = Math.max(0, totalBruto - (c.historial[realIdx].pagadoAlComprar || 0));
+        c.historial[realIdx].total = nuevoTotal;
+        if (nuevosProds.length === 0 || nuevoTotal <= 0) {
+          c.historial[realIdx].pagado = c.historial[realIdx].total;
+        }
+        c.deuda = c.historial.reduce((s, h2) => s + Math.max(0, h2.total - h2.pagado), 0);
+      }
+    }
+  }
+
+  // 3. Modificar ventasHistorial
   if (items.length <= 1) {
-    // Solo quedaba un producto: eliminar la venta completa
     ventasHistorial = ventasHistorial.filter(v => v.id !== ventaId);
   } else {
-    // Quitar solo ese producto y recalcular el total
     items.splice(itemIndex, 1);
     const nuevoTotal = items.reduce((sum, p) => sum + (p.precio * (p.cant || p.qty || 1)), 0);
     venta.total = nuevoTotal;
     if (venta.pagado !== undefined) venta.pagado = Math.min(venta.pagado, nuevoTotal);
   }
+
   guardarTodoEnLocalStorage();
+  renderProdTable(); renderProdGrid(); renderPOSProducts();
+  renderClients();
   actualizarDashboardReal();
   renderReportes(_getPanelActivo());
-  showToast('Línea eliminada', 'success');
+  showToast('Línea eliminada del reporte', 'success');
 }
 
 function _getPanelActivo() {
